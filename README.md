@@ -10,7 +10,7 @@ Michael Clavier's working tools for RAWFIILE, alongside FRAME (invoices, quotes 
 
 Autopilot finds London businesses that use photos and video, writes each one a short personal email in Michael's voice, sends it from rawfiile@gmail.com, follows up once in the same thread two weeks later if there is no reply, and stops as soon as someone replies. At most 7 emails a day in total (5 new businesses a day by default).
 
-It costs nothing extra: the work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 09:00 and 14:00, using Michael's existing Gmail and Supabase connections and Claude's own web search. No API keys and no paid services. The site only stores the settings, the approval queue and the history.
+It costs nothing extra: the work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 08:40 and 13:40, using Michael's existing Gmail and Supabase connections and Claude's own web search. No API keys and no paid services. The site only stores the settings, the approval queue and the history.
 
 - **Finding (morning run):** web searches for the targets set on the Autopilot page. Each site is read for an address on the business's own domain. Free webmail, privacy, jobs and accounts inboxes, platforms, directories and press are skipped.
 - **Writing:** fit judged 0 to 10; emails follow fixed rules: no price, no long dashes, no placeholders, the portfolio link, signed Michael Clavier, and an opt-out line ("reply 'no thanks'").
