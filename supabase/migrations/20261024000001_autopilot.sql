@@ -1,9 +1,10 @@
 -- Outreacher autopilot: finds prospects, writes and sends first emails, sends one follow-up, notices replies and
 -- opt-outs. Additive only; depends on 20261023100001_studio.sql.
 --
--- * The scheduler runs as the server (service role), one small step every ten minutes, so sending is spread through
---   the working day. Everything a person does in the app still goes through row level security.
--- * The outreach mailbox's Google tokens are stored encrypted, in a table nobody signed in can read.
+-- * The work is done by a Claude scheduled task on weekday mornings and afternoons, using Michael's existing Gmail
+--   (rawfiile@gmail.com) and Supabase connections. No API keys, no paid services. It reads these settings, writes
+--   to these tables, and everything a person does in the app still goes through row level security.
+-- * At most 7 emails a day in total (first emails plus follow-ups); 5 new businesses a day by default.
 -- * Opt-outs and bounces go on a suppression list that is checked before every send, forever.
 
 -- Contacts learn where they came from ----------------------------------------------------------------------------------
@@ -21,7 +22,7 @@ create table if not exists public.studio_autopilot (
   owner_id uuid primary key default auth.uid() references auth.users(id) on delete cascade,
   enabled boolean not null default false,
   mode text not null default 'approve' check (mode in ('approve','auto')),
-  daily_new_limit smallint not null default 10 check (daily_new_limit between 1 and 40),
+  daily_new_limit smallint not null default 5 check (daily_new_limit between 1 and 7),
   send_days smallint[] not null default '{1,2,3,4,5}' check (send_days <@ '{0,1,2,3,4,5,6}'::smallint[]),
   window_start time not null default '09:30',
   window_end time not null default '16:30',
@@ -44,21 +45,6 @@ alter table public.studio_autopilot add column if not exists last_tick_at timest
 alter table public.studio_autopilot add column if not exists last_error text not null default '';
 drop trigger if exists t_studio_autopilot_touch on public.studio_autopilot;
 create trigger t_studio_autopilot_touch before update on public.studio_autopilot for each row execute function public.studio_touch();
-
--- The outreach mailbox (Gmail or Google Workspace). Tokens are encrypted by the app; only the server can read them.
-create table if not exists public.studio_mailboxes (
-  owner_id uuid primary key references auth.users(id) on delete cascade,
-  email text not null check (length(email) <= 320),
-  refresh_token_enc text not null,
-  access_token_enc text,
-  access_token_expires_at timestamptz,
-  scopes text[] not null default '{}',
-  connected_at timestamptz not null default now(),
-  last_error text not null default '' check (length(last_error) <= 500)
-);
--- What the app may show: which address is connected and since when.
-create or replace view public.studio_mailbox_status with (security_invoker = false) as
-  select owner_id, email, connected_at, scopes, last_error from public.studio_mailboxes where owner_id = auth.uid();
 
 -- Emails: queued for approval, waiting for their send slot, sent, or stopped ------------------------------------------
 create table if not exists public.studio_emails (
@@ -131,7 +117,6 @@ create index if not exists studio_activity_owner_idx on public.studio_activity(o
 
 -- Row level security -------------------------------------------------------------------------------------------------
 alter table public.studio_autopilot enable row level security;
-alter table public.studio_mailboxes enable row level security;
 alter table public.studio_emails enable row level security;
 alter table public.studio_suppressions enable row level security;
 alter table public.studio_search_log enable row level security;
@@ -154,13 +139,12 @@ create policy studio_seen_select on public.studio_seen_domains for select to aut
 drop policy if exists studio_search_log_select on public.studio_search_log;
 create policy studio_search_log_select on public.studio_search_log for select to authenticated using (owner_id = auth.uid());
 
-revoke all on public.studio_autopilot, public.studio_mailboxes, public.studio_emails, public.studio_suppressions,
-  public.studio_search_log, public.studio_seen_domains, public.studio_activity, public.studio_mailbox_status from anon;
+revoke all on public.studio_autopilot, public.studio_emails, public.studio_suppressions,
+  public.studio_search_log, public.studio_seen_domains, public.studio_activity from anon;
 -- Supabase grants signed-in users everything on new tables by default. Start from nothing, then grant only what is
--- needed. Mailbox tokens: no access at all for signed-in users; they see studio_mailbox_status instead.
-revoke all on public.studio_autopilot, public.studio_mailboxes, public.studio_emails, public.studio_suppressions,
+-- needed.
+revoke all on public.studio_autopilot, public.studio_emails, public.studio_suppressions,
   public.studio_search_log, public.studio_seen_domains, public.studio_activity from authenticated;
-grant select on public.studio_mailbox_status to authenticated;
 grant select, insert, update on public.studio_autopilot to authenticated;
 grant select, insert, delete on public.studio_suppressions to authenticated;
 grant usage on sequence public.studio_suppressions_id_seq to authenticated;
@@ -170,14 +154,6 @@ grant select on public.studio_emails to authenticated;
 grant update (subject, body, status, approved_at) on public.studio_emails to authenticated;
 grant select on public.studio_activity, public.studio_seen_domains, public.studio_search_log to authenticated;
 
--- Switching the mailbox off (disconnect) from the app.
-create or replace function public.studio_disconnect_mailbox()
-returns void language sql security definer set search_path = public as $$
-  delete from public.studio_mailboxes where owner_id = auth.uid();
-$$;
-revoke execute on function public.studio_disconnect_mailbox() from public, anon;
-grant execute on function public.studio_disconnect_mailbox() to authenticated;
-
 -- Is this address (or its domain) on the do-not-contact list?
 create or replace function public.studio_is_suppressed(p_owner uuid, p_email text)
 returns boolean language sql stable set search_path = public as $$
@@ -185,7 +161,7 @@ returns boolean language sql stable set search_path = public as $$
     (s.kind = 'email' and s.value = lower(trim(p_email))) or
     (s.kind = 'domain' and s.value = lower(split_part(trim(p_email), '@', 2)))))
 $$;
--- Server only: a signed-in user must not be able to probe another account's list.
+-- For the scheduled task only: a signed-in user must not be able to probe another account's list.
 revoke execute on function public.studio_is_suppressed(uuid, text) from public, anon, authenticated;
 do $$ begin
   if exists (select 1 from pg_roles where rolname = 'service_role') then

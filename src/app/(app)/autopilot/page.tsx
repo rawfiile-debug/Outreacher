@@ -1,6 +1,5 @@
 'use client';
 import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { PageHeader } from '@/components/AppShell';
 import { useToast } from '@/components/Toast';
 import { must, useQuery } from '@/components/useQuery';
@@ -11,8 +10,7 @@ type Email = { id: string; contact_id: string; kind: 'first' | 'follow_up'; stat
   studio_contacts: { name: string; company: string; website: string; research: string; fit_score: number | null; category: string } | null };
 type Activity = { id: number; kind: string; message: string; created_at: string };
 type Suppression = { id: number; value: string; kind: string; reason: string; created_at: string };
-type Ready = { server: boolean; finding: boolean; mailbox: boolean; companiesHouse: boolean };
-type Data = { s: (Settings & { owner_id: string; last_tick_at: string | null; last_error: string }) | null; mailbox: { email: string; connected_at: string; last_error: string } | null;
+type Data = { s: (Settings & { owner_id: string; last_tick_at: string | null; last_error: string }) | null;
   pending: Email[]; approved: number; sentToday: number; activity: Activity[]; suppressions: Suppression[] };
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -21,31 +19,22 @@ const ICON: Record<string, string> = { found: '◎', sent: '✉', follow_up: '�
 
 function AutopilotInner() {
   const toast = useToast();
-  const sp = useSearchParams();
   const supabase = createSupabaseBrowserClient();
-  const [ready, setReady] = useState<Ready | null>(null);
   const [busy, setBusy] = useState('');
-  const [runLog, setRunLog] = useState<string[] | null>(null);
   const { data, setData, error, reload } = useQuery<Data>(async () => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const [s, mb, pending, approved, sent, act, sup] = await Promise.all([
+    const [s, pending, approved, sent, act, sup] = await Promise.all([
       supabase.from('studio_autopilot').select('*').maybeSingle(),
-      supabase.from('studio_mailbox_status').select('email, connected_at, last_error').maybeSingle(),
       supabase.from('studio_emails').select('*, studio_contacts(name, company, website, research, fit_score, category)').eq('status', 'pending').order('created_at').limit(50),
       supabase.from('studio_emails').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
       supabase.from('studio_emails').select('id', { count: 'exact', head: true }).eq('status', 'sent').gte('sent_at', today.toISOString()),
       supabase.from('studio_activity').select('*').order('created_at', { ascending: false }).limit(60),
       supabase.from('studio_suppressions').select('*').order('created_at', { ascending: false }).limit(200),
     ]);
-    return { s: must(s) as Data['s'], mailbox: must(mb) as Data['mailbox'], pending: must(pending) as Email[], approved: approved.count ?? 0,
+    return { s: must(s) as Data['s'], pending: must(pending) as Email[], approved: approved.count ?? 0,
       sentToday: sent.count ?? 0, activity: must(act) as Activity[], suppressions: must(sup) as Suppression[] };
   }, []);
 
-  useEffect(() => { fetch('/api/autopilot/status').then((r) => r.json()).then(setReady).catch(() => setReady(null)); }, []);
-  useEffect(() => {
-    if (sp.get('mailbox')) toast(`Connected ${sp.get('mailbox')}`);
-    if (sp.get('mailbox_error')) toast(sp.get('mailbox_error')!, 'error');
-  }, [sp, toast]);
   useEffect(() => { // first visit: create the settings row (switched off)
     if (data && !data.s) supabase.from('studio_autopilot').insert({}).select('*').single().then(({ data: row }: { data: unknown }) => { if (row) setData({ ...data, s: row as Data['s'] }); });
   }, [data, setData, supabase]);
@@ -61,8 +50,6 @@ function AutopilotInner() {
   if (error) return <div className="notice error">{error} <button onClick={reload}>Retry</button></div>;
   if (!data?.s) return <div className="skeleton">Loading…</div>;
   const s = data.s;
-  const canFind = ready?.finding && ready?.server;
-  const canSend = Boolean(data.mailbox) && ready?.server;
 
   async function setMode(mode: 'approve' | 'auto') {
     if (mode === 'auto' && !confirm(`Switch to automatic? New emails will send without asking you${data!.pending.length ? `, including the ${data!.pending.length} waiting now` : ''}. You can switch back at any time.`)) return;
@@ -78,49 +65,34 @@ function AutopilotInner() {
 
   return (
     <>
-      <PageHeader crumb="AUTOPILOT" title="Autopilot" sub="Finds London businesses that need photos and video, writes to them, follows up once, and stops when they reply."
-        actions={<button type="button" disabled={!!busy || !s.enabled} title={s.enabled ? '' : 'Switch Autopilot on first'} onClick={() => run('run', async () => {
-          const r = await fetch('/api/autopilot/run', { method: 'POST' }); const j = await r.json(); if (!r.ok) throw new Error(j.error || 'Run failed'); setRunLog(j.log);
-        })}>{busy === 'run' ? <span className="spinner" /> : null} Run now</button>} />
+      <PageHeader crumb="AUTOPILOT" title="Autopilot" sub="Finds London businesses that need photos and video, writes to them, follows up once, and stops when they reply." />
 
-      {ready && (!ready.server || !ready.finding || !data.mailbox) ? (
-        <div className="panel setup">
-          <h2>Setup</h2>
-          <ul className="checklist">
-            <li className={ready.server ? 'done' : ''}>Server keys (scheduler and database access){ready.server ? '' : ': being added by Claude'}</li>
-            <li className={ready.finding ? 'done' : ''}>Web search and email writer keys{ready.finding ? '' : ': Brave Search and Anthropic API keys needed'}</li>
-            <li className={data.mailbox ? 'done' : ''}>Outreach mailbox{data.mailbox ? `: ${data.mailbox.email}` : ''}
-              {!data.mailbox ? <div className="inline-actions" style={{ marginTop: 6 }}>
-                {ready.mailbox ? <a className="btn primary" href="/api/mailbox/connect">Connect the outreach mailbox</a> : <span className="small">Google sign-in for the mailbox is not set up on the server yet.</span>}
-              </div> : null}</li>
-            <li className={ready.companiesHouse ? 'done' : 'optional'}>Companies House check (optional, free){ready.companiesHouse ? '' : ': confirms each business is a limited company'}</li>
-          </ul>
-        </div>
-      ) : null}
+      <div className="panel">
+        <h2>How it runs</h2>
+        <p className="small">Claude does the work as a scheduled task on your existing plan: no API keys and nothing extra to pay for. Every weekday at about 09:00 it checks rawfiile@gmail.com for replies, sends the emails you have approved and any follow-ups that are due, and finds new businesses for you to approve. At about 14:00 it checks replies again and sends anything you approved since the morning. Emails go from rawfiile@gmail.com, at most 7 a day in total.</p>
+      </div>
 
       <div className="stats">
         <div className="stat"><div className="label">Status</div><div className="value" style={{ fontSize: 22 }}>{s.enabled ? (s.mode === 'auto' ? 'Automatic' : 'Approving') : 'Off'}</div>
-          <div className="hint">{s.last_tick_at ? `Last ran ${when(s.last_tick_at)}` : 'Not run yet'}</div></div>
+          <div className="hint">{s.last_tick_at ? `Last run ${when(s.last_tick_at)}` : 'Not run yet'}</div></div>
         <div className="stat"><div className="label">Waiting for you</div><div className="value">{data.pending.length}</div><div className="hint">first emails to approve</div></div>
-        <div className="stat"><div className="label">Queued to send</div><div className="value">{data.approved}</div><div className="hint">sent in working hours</div></div>
-        <div className="stat"><div className="label">Sent today</div><div className="value">{data.sentToday}</div><div className="hint">limit {s.daily_new_limit} new a day</div></div>
+        <div className="stat"><div className="label">Queued to send</div><div className="value">{data.approved}</div><div className="hint">sent at the next run</div></div>
+        <div className="stat"><div className="label">Sent today</div><div className="value">{data.sentToday}</div><div className="hint">7 a day at most</div></div>
       </div>
       {s.last_error ? <div className="notice error">Last run stopped: {s.last_error}</div> : null}
-      {data.mailbox?.last_error ? <div className="notice error">{data.mailbox.last_error} <a href="/api/mailbox/connect">Reconnect</a></div> : null}
       {suggestAuto(s, new Date()) ? (
         <div className="notice ok">You have been approving emails for two weeks. If you are happy with them, switch to automatic so they send without you. <button type="button" onClick={() => setMode('auto')}>Switch to automatic</button></div>
       ) : null}
-      {runLog ? <div className="notice"><strong>Run now:</strong>{runLog.length ? <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{runLog.map((l, i) => <li key={i}>{l}</li>)}</ul> : ' Nothing to do right now.'}</div> : null}
 
       <div className="two-col">
         <div>
           <div className="panel">
-            <div className="section-head"><div><h2>Approve emails</h2><p className="sub">{s.mode === 'auto' ? 'Automatic mode: new emails send without waiting here.' : 'Read, edit if you like, then approve. Approved emails go out spaced through working hours.'}</p></div>
+            <div className="section-head"><div><h2>Approve emails</h2><p className="sub">{s.mode === 'auto' ? 'Automatic mode: new emails send without waiting here.' : 'Read, edit if you like, then approve. Approved emails go out at the next run (about 09:00 or 14:00 on weekdays).'}</p></div>
               {data.pending.length > 1 ? <button type="button" className="primary" disabled={!!busy} onClick={() => {
                 if (confirm(`Approve all ${data.pending.length} emails as written?`)) run('all', async () => { must(await supabase.from('studio_emails').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('status', 'pending').select('id')); }, 'All approved');
               }}>Approve all ({data.pending.length})</button> : null}</div>
             {data.pending.length ? data.pending.map((e) => <QueueItem key={e.id} e={e} busy={busy === e.id} onApprove={(ed) => decide(e, 'approved', ed)} onSkip={() => decide(e, 'skipped')} />)
-              : <p className="small">{s.enabled ? (canFind ? 'Nothing waiting. New businesses appear here as Autopilot finds them.' : 'Waiting for the search and writer keys.') : 'Switch Autopilot on to start finding businesses.'}</p>}
+              : <p className="small">{s.enabled ? 'Nothing waiting. New businesses appear here after each morning run.' : 'Switch Autopilot on to start finding businesses.'}</p>}
           </div>
           <div className="panel">
             <h2>Activity</h2>
@@ -139,8 +111,7 @@ function AutopilotInner() {
               <button type="button" className={s.mode === 'auto' ? 'on' : ''} onClick={() => s.mode !== 'auto' && setMode('auto')}>Automatic</button>
             </div>
             <p className="small" style={{ marginTop: 8 }}>Follow-ups always send on their own, {s.follow_up_days} days after the first email, unless the person has replied.</p>
-            {!canSend && s.enabled ? <p className="small">Nothing will send until the outreach mailbox is connected. Emails can still be found and approved.</p> : null}
-            {data.mailbox ? <p className="small">Sending from <strong>{data.mailbox.email}</strong> · <button type="button" className="linkish" onClick={() => { if (confirm('Disconnect the outreach mailbox? Sending stops until you connect it again.')) run('mb', async () => { must(await supabase.rpc('studio_disconnect_mailbox')); }, 'Mailbox disconnected'); }}>Disconnect</button></p> : null}
+            <p className="small">Sending from <strong>rawfiile@gmail.com</strong>.</p>
           </div>
           <SettingsForm s={s} busy={busy === 'settings'} onSave={(p) => save(p, 'Settings saved')} />
           <DoNotContact list={data.suppressions} onChange={reload} />
@@ -190,11 +161,9 @@ function SettingsForm({ s, busy, onSave }: { s: Settings; busy: boolean; onSave:
         <div className="field full"><label htmlFor="ap-targets">Who to look for (one search per line)</label>
           <textarea id="ap-targets" rows={5} value={f.targetsText} onChange={(e) => set('targetsText', e.target.value)} />
           <span className="hint">Written like a web search, e.g. &ldquo;streetwear brands in East London&rdquo;. Each is worked through ten pages deep.</span></div>
-        <div className="field"><label htmlFor="ap-limit">New businesses a day</label><input id="ap-limit" type="number" min={1} max={40} value={f.daily_new_limit} onChange={(e) => set('daily_new_limit', Number(e.target.value))} />
-          <span className="hint">A new mailbox starts at 3 a day, then 6, to build trust.</span></div>
+        <div className="field"><label htmlFor="ap-limit">New businesses a day</label><input id="ap-limit" type="number" min={1} max={7} value={f.daily_new_limit} onChange={(e) => set('daily_new_limit', Math.min(7, Math.max(1, Number(e.target.value) || 1)))} />
+          <span className="hint">Up to 7. Follow-ups count towards the 7-a-day total, so new emails make way for them.</span></div>
         <div className="field"><label htmlFor="ap-fu">Follow up after (days)</label><input id="ap-fu" type="number" min={3} max={60} value={f.follow_up_days} onChange={(e) => set('follow_up_days', Number(e.target.value))} /></div>
-        <div className="field"><label htmlFor="ap-ws">Send from</label><input id="ap-ws" type="time" value={f.window_start.slice(0, 5)} onChange={(e) => set('window_start', e.target.value)} /></div>
-        <div className="field"><label htmlFor="ap-we">Until</label><input id="ap-we" type="time" value={f.window_end.slice(0, 5)} onChange={(e) => set('window_end', e.target.value)} /></div>
         <div className="field full"><label>Days</label><div className="seg small-seg">{DAYS.map((d, i) => (
           <button key={d} type="button" className={f.send_days.includes(i) ? 'on' : ''} onClick={() => set('send_days', f.send_days.includes(i) ? f.send_days.filter((x) => x !== i) : [...f.send_days, i].sort())}>{d}</button>))}</div></div>
         <div className="field"><label htmlFor="ap-fit">Lowest fit to contact (0 to 10)</label><input id="ap-fit" type="number" min={0} max={10} value={f.min_fit} onChange={(e) => set('min_fit', Number(e.target.value))} /></div>

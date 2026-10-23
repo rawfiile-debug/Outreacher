@@ -21,25 +21,6 @@ export function inSendWindow(s: Pick<Settings, 'send_days' | 'window_start' | 'w
   return s.send_days.includes(l.weekday) && l.minutes >= mins(s.window_start) && l.minutes < mins(s.window_end);
 }
 
-/**
- * A new mailbox builds trust slowly: 3 first emails a day in its first week, 6 in the second, then the chosen limit.
- * Sending a sudden burst from a fresh address is the quickest way to land in spam.
- */
-export function dailyLimit(limit: number, mailboxConnectedAt: string | null, now: Date): number {
-  if (!mailboxConnectedAt) return 0;
-  const days = (now.getTime() - Date.parse(mailboxConnectedAt)) / 86_400_000;
-  return Math.min(limit, days < 7 ? 3 : days < 14 ? 6 : limit);
-}
-
-/** Spread the day's emails across the window: wait at least this long between sends (with a little variation). */
-export function minutesBetweenSends(s: Pick<Settings, 'window_start' | 'window_end'>, perDay: number, jitter = Math.random()): number {
-  const span = mins(s.window_end) - mins(s.window_start);
-  const even = span / Math.max(perDay, 1);
-  return Math.max(8, Math.round(even * (0.7 + 0.3 * jitter)));
-}
-
-export function mayAddMoreToday(sentToday: number, perDay: number) { return sentToday < perDay; }
-
 /** Picks the search with the fewest runs so far (page by page), so every target gets its turn. */
 export function nextSearch(targets: string[], log: { query: string; page: number }[]): { query: string; page: number } | null {
   if (!targets.length) return null;

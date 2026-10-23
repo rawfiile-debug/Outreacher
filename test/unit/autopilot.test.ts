@@ -2,8 +2,6 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 import { chooseEmail, domainOf, extractEmails, isSkippedDomain } from '@/lib/autopilot/emails';
 import { classifyReply, finishFirstEmail, followUpEmail, noLongDashes, OPT_OUT_LINE } from '@/lib/autopilot/compose';
-import { findContactLink, htmlToText } from '@/lib/autopilot/site';
-import { parseAssessment } from '@/lib/autopilot/writer';
 
 describe('finding the right address', () => {
   it('reads domains safely', () => {
@@ -27,16 +25,6 @@ describe('finding the right address', () => {
   });
   it('never picks free webmail, other domains, or privacy, jobs and accounts inboxes', () => {
     expect(chooseEmail(['someone@gmail.com', 'privacy@studio.co.uk', 'careers@studio.co.uk', 'accounts@studio.co.uk', 'noreply@studio.co.uk', 'hi@other.com'], 'studio.co.uk')).toBeNull();
-  });
-});
-
-describe('reading a website', () => {
-  it('turns HTML into plain text without scripts or styles', () => {
-    expect(htmlToText('<style>a{}</style><h1>Night&nbsp;Club</h1><script>x()</script><p>Fri &amp; Sat</p>')).toBe('Night Club\nFri & Sat');
-  });
-  it('finds the contact page on the same site only', () => {
-    const html = '<a href="/menu">Menu</a><a href="https://instagram.com/x">Contact us on IG</a><a href="/get-in-touch">Get in touch</a>';
-    expect(findContactLink(html, 'https://venue.co.uk/')).toBe('https://venue.co.uk/get-in-touch');
   });
 });
 
@@ -100,16 +88,8 @@ describe('reading replies', () => {
   });
 });
 
-describe('the writer’s answer', () => {
-  it('reads JSON even with text around it, and rejects junk', () => {
-    const a = parseAssessment('Here you go: {"is_business":true,"is_london":true,"business_type":"club","company_name":"Arches","contact_name":"Sam Lee","fit":8.4,"reason":"r","summary":"s","subject":"x","body":"y"} done');
-    expect(a).toMatchObject({ fit: 8, company_name: 'Arches', contact_name: 'Sam Lee' });
-    expect(parseAssessment('no json here')).toBeNull();
-    expect(parseAssessment('{"fit":"high"}')).toBeNull();
-  });
-});
 
-import { dailyLimit, inSendWindow, londonParts, minutesBetweenSends, nextSearch, suggestAuto } from '@/lib/autopilot/schedule';
+import { inSendWindow, londonParts, nextSearch, suggestAuto } from '@/lib/autopilot/schedule';
 
 describe('when and how much to send', () => {
   const s = { send_days: [1, 2, 3, 4, 5], window_start: '09:30', window_end: '16:30' };
@@ -122,19 +102,6 @@ describe('when and how much to send', () => {
     expect(inSendWindow(s, new Date('2026-10-26T08:00:00Z'))).toBe(false); // Mon 08:00
     expect(inSendWindow(s, new Date('2026-10-26T16:45:00Z'))).toBe(false); // Mon 16:45
     expect(inSendWindow(s, new Date('2026-10-25T11:00:00Z'))).toBe(false); // Sunday
-  });
-  it('warms a new mailbox up: 3 a day, then 6, then the full limit', () => {
-    const now = new Date('2026-11-30T12:00:00Z');
-    expect(dailyLimit(10, null, now)).toBe(0);
-    expect(dailyLimit(10, '2026-11-28T12:00:00Z', now)).toBe(3);
-    expect(dailyLimit(10, '2026-11-20T12:00:00Z', now)).toBe(6);
-    expect(dailyLimit(10, '2026-11-01T12:00:00Z', now)).toBe(10);
-    expect(dailyLimit(4, '2026-11-20T12:00:00Z', now)).toBe(4);
-  });
-  it('spreads sends across the day', () => {
-    expect(minutesBetweenSends(s, 10, 1)).toBe(42);
-    expect(minutesBetweenSends(s, 10, 0)).toBe(29);
-    expect(minutesBetweenSends(s, 100, 0)).toBe(8);
   });
   it('takes turns between targets, page by page, and stops when they are used up', () => {
     const t = ['a', 'b'];

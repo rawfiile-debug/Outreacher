@@ -17,10 +17,10 @@ beforeAll(async () => {
 afterAll(async () => { await pool.end(); });
 
 describe('autopilot settings', () => {
-  it('starts switched off, in approval mode, 10 a day, 14-day follow-up', async () => {
+  it('starts switched off, in approval mode, 5 a day (7 at most), 14-day follow-up', async () => {
     const s = await q1(owner, 'insert into studio_autopilot default values returning *');
-    expect(s).toMatchObject({ enabled: false, mode: 'approve', daily_new_limit: 10, follow_up_days: 14, send_days: [1, 2, 3, 4, 5] });
-    await expect(q1(owner, 'update studio_autopilot set daily_new_limit = 500 returning 1')).rejects.toThrow(/daily_new_limit/);
+    expect(s).toMatchObject({ enabled: false, mode: 'approve', daily_new_limit: 5, follow_up_days: 14, send_days: [1, 2, 3, 4, 5] });
+    await expect(q1(owner, 'update studio_autopilot set daily_new_limit = 8 returning 1')).rejects.toThrow(/daily_new_limit/);
     expect(await qa(intruder, 'select * from studio_autopilot')).toEqual([]);
   });
 });
@@ -42,17 +42,6 @@ describe('email queue', () => {
     const c = (await q1(owner, `insert into studio_contacts(name, email) values ('Once', 'once@x.test') returning id`)).id;
     await asServer(`insert into studio_emails(owner_id, contact_id, kind, to_email, subject, body) values ($1, $2, 'first', 'once@x.test', 's', 'b')`, [owner, c]);
     await expect(asServer(`insert into studio_emails(owner_id, contact_id, kind, to_email, subject, body) values ($1, $2, 'first', 'once@x.test', 's', 'b')`, [owner, c])).rejects.toThrow(/one_per_kind/);
-  });
-});
-
-describe('mailbox tokens', () => {
-  it('are never readable from the app; the owner only sees which address is connected', async () => {
-    await asServer(`insert into studio_mailboxes(owner_id, email, refresh_token_enc) values ($1, 'michael@rawfiile.test', 'v1.secret')`, [owner]);
-    await expect(q1(owner, 'select refresh_token_enc from studio_mailboxes')).rejects.toThrow(/permission denied/);
-    expect(await q1(owner, 'select email from studio_mailbox_status')).toEqual({ email: 'michael@rawfiile.test' });
-    expect(await qa(intruder, 'select email from studio_mailbox_status')).toEqual([]);
-    await q1(owner, 'select studio_disconnect_mailbox() as x');
-    expect(await asServer('select count(*)::int as n from studio_mailboxes where owner_id = $1', [owner])).toEqual({ n: 0 });
   });
 });
 

@@ -8,14 +8,14 @@ Michael Clavier's working tools for RAWFIILE, alongside FRAME (invoices, quotes 
 
 ## Autopilot
 
-Autopilot finds London businesses that use photos and video, writes each one a short personal email in Michael's voice, sends it, follows up once in the same thread two weeks later if there is no reply, and stops as soon as someone replies.
+Autopilot finds London businesses that use photos and video, writes each one a short personal email in Michael's voice, sends it from rawfiile@gmail.com, follows up once in the same thread two weeks later if there is no reply, and stops as soon as someone replies. At most 7 emails a day in total (5 new businesses a day by default).
 
-- **Finding:** Brave web search for the targets set on the Autopilot page, page by page. Each site is read (home page and contact page) for an address on the business's own domain. Free webmail, privacy, jobs and accounts inboxes, platforms, directories and press are skipped. An optional Companies House check confirms a limited company.
-- **Writing:** Claude judges the fit (0 to 10) and writes the email. Fixed rules then check every email: no price, no long dashes, no placeholders, the portfolio link, signed Michael Clavier, and an opt-out line ("reply 'no thanks'").
-- **Approving:** in "Approve each email" mode new emails wait on the Autopilot page to be approved, edited or skipped. After two weeks the page suggests switching to Automatic. Follow-ups always send on their own.
-- **Sending:** from a separate outreach mailbox (Gmail or Google Workspace) through the Gmail API, plain text with a List-Unsubscribe header, only on the chosen days and hours (UK time), spaced out through the day. A new mailbox warms up: 3 new emails a day in week one, 6 in week two, then the chosen limit.
-- **Replies:** the inbox is checked every ten minutes. A reply moves the contact to Replied and cancels anything still queued. Opt-outs and bounces go on the do-not-contact list and are never emailed again. Out-of-office replies are ignored.
-- **Scheduler:** Supabase pg_cron calls `/api/cron/tick` every ten minutes with `CRON_SECRET` (`supabase/scheduler.sql`). Each call does one small step for each account with Autopilot switched on.
+It costs nothing extra: the work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 09:00 and 14:00, using Michael's existing Gmail and Supabase connections and Claude's own web search. No API keys and no paid services. The site only stores the settings, the approval queue and the history.
+
+- **Finding (morning run):** web searches for the targets set on the Autopilot page. Each site is read for an address on the business's own domain. Free webmail, privacy, jobs and accounts inboxes, platforms, directories and press are skipped.
+- **Writing:** fit judged 0 to 10; emails follow fixed rules: no price, no long dashes, no placeholders, the portfolio link, signed Michael Clavier, and an opt-out line ("reply 'no thanks'").
+- **Approving:** in "Approve each email" mode new emails wait on the Autopilot page. After two weeks the page suggests switching to Automatic. Follow-ups send on their own.
+- **Replies:** each run checks rawfiile@gmail.com. A reply moves the contact to Replied and cancels anything queued. Opt-outs and bounces go on the do-not-contact list for good. Out-of-office replies are ignored.
 
 UK rules: business-to-business cold email is allowed to corporate addresses when the sender is clear and every email offers an easy opt-out that is honoured. Each contact records where it was found.
 
@@ -32,7 +32,7 @@ Next.js on Vercel, with the **same Supabase project as FRAME**, so the same emai
 
 1. Supabase (the FRAME "invoice" project) > SQL Editor: run `supabase/migrations/20261023100001_studio.sql`. It only adds new things and can be run again safely.
 2. Vercel: import this repo, add the variables from `.env.example`, deploy.
-3. Autopilot: run `supabase/migrations/20261024000001_autopilot.sql`, then `supabase/scheduler.sql` with the real `CRON_SECRET`. Add the Autopilot variables from `.env.example` in Vercel. In Google Cloud, add `https://<this site>/api/mailbox/callback` as an authorised redirect URI on the OAuth client (publishing status "In production", or refresh tokens expire after 7 days). Then connect the outreach mailbox on the Autopilot page and switch Autopilot on.
+3. Autopilot: run `supabase/migrations/20261024000001_autopilot.sql`, then switch Autopilot on from its page. The Claude scheduled task does the rest.
 4. Optional, Notion: create an internal integration, add `NOTION_TOKEN` in Vercel, and connect the integration to the Email Contacts database. "Import from Notion" then appears on the Outreach page; it adds new contacts, fills gaps in existing ones and only ever moves a stage forward. Marking someone as Replied here ticks "response" on their Notion row.
 
 ## Development
