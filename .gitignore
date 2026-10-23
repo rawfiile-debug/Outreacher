@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+AGENTS.md
+.DS_Store
+coverage/
+backups/
+/public/ocr/
