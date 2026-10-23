@@ -41,7 +41,7 @@ export default function OverviewPage() {
     <>
       <PageHeader crumb="OVERVIEW" title="Overview" sub={formatLongDate(today())} />
       <div className="stats">
-        <Link className="stat" href="/outreach"><div className="label">Follow-ups due</div><div className="value">{due.length}</div><div className="hint">a week after the first email</div></Link>
+        <Link className="stat" href="/outreach"><div className="label">Follow-ups due</div><div className="value">{due.length}</div><div className="hint">two weeks after the first email</div></Link>
         <Link className="stat" href="/outreach"><div className="label">Emailed this week</div><div className="value">{emailedThisWeek}</div><div className="hint">first emails sent</div></Link>
         <Link className="stat" href="/outreach"><div className="label">Reply rate</div><div className="value">{contacted ? Math.round((replied / contacted) * 100) : 0}%</div><div className="hint">{replied} of {contacted} contacted</div></Link>
         <Link className="stat" href="/call-sheets"><div className="label">Shoots in 30 days</div><div className="value">{data!.sheets.length}</div><div className="hint">with call sheets</div></Link>

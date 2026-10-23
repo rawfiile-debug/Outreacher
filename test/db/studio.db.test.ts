@@ -31,13 +31,13 @@ describe('outreach contacts', () => {
     const e = await q1(owner, `update studio_contacts set stage = 'Emailed' where id = $1 returning first_emailed_on`, [c.id]);
     expect(e.first_emailed_on).toBe(today());
     expect(await q1(owner, 'select follow_up_due from studio_contact_list where id = $1', [c.id])).toEqual({ follow_up_due: false });
-    await q1(owner, `update studio_contacts set first_emailed_on = $2 where id = $1 returning id`, [c.id, daysAgo(7)]);
+    await q1(owner, `update studio_contacts set first_emailed_on = $2 where id = $1 returning id`, [c.id, daysAgo(14)]);
     expect(await q1(owner, 'select follow_up_due, follow_up_on from studio_contact_list where id = $1', [c.id])).toEqual({ follow_up_due: true, follow_up_on: today() });
     const f = await q1(owner, `update studio_contacts set stage = 'Followed up' where id = $1 returning followed_up_on`, [c.id]);
     expect(f.followed_up_on).toBe(today());
     expect((await q1(owner, 'select follow_up_due from studio_contact_list where id = $1', [c.id])).follow_up_due).toBe(false);
     const r = await q1(owner, `update studio_contacts set stage = 'Replied' where id = $1 returning replied_on, first_emailed_on`, [c.id]);
-    expect(r).toEqual({ replied_on: today(), first_emailed_on: daysAgo(7) });
+    expect(r).toEqual({ replied_on: today(), first_emailed_on: daysAgo(14) });
   });
 
   it('refuses a blank contact and a duplicate email', async () => {

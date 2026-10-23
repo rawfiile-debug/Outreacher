@@ -99,7 +99,7 @@ export default function OutreachPage() {
 
       {due.length ? (
         <div className="panel due-panel">
-          <div className="section-head"><div><h2>Follow-ups due</h2><p className="sub">One follow-up, a week after the first email. It opens in Gmail for you to check and send.</p></div></div>
+          <div className="section-head"><div><h2>Follow-ups due</h2><p className="sub">One follow-up, two weeks after the first email. It opens in Gmail for you to check and send.</p></div></div>
           {due.map((c) => (
             <div key={c.id} className="suggestion">
               <div><strong>{c.name || c.company}</strong>{c.company && c.name ? ` · ${c.company}` : ''}

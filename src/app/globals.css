@@ -764,3 +764,31 @@ body:has(.shared-page){background:#ECEDEF}
   a{color:inherit;text-decoration:none}
   .cs-map{display:none}
 }
+
+/* Autopilot */
+.checklist{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.checklist li{padding-left:28px;position:relative;font-size:14px}
+.checklist li::before{content:'○';position:absolute;left:4px;color:var(--amber)}
+.checklist li.done::before{content:'✓';color:var(--green)}
+.checklist li.optional::before{content:'○';color:var(--muted)}
+.setup{border-color:#5C4A1F}
+.check.big{font-size:15px;font-weight:600}
+.check.big input{width:20px;height:20px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;border-radius:0;background:transparent;padding:9px 12px}
+.seg button.on{background:var(--paper);color:var(--ink);font-weight:700}
+.small-seg button{padding:7px 10px;font-size:12px}
+.queue-item{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:12px}
+.qi-head{display:flex;justify-content:space-between;gap:10px}
+.qi-why{margin:8px 0}
+.qi-email{background:var(--bg);border:1px solid var(--line-soft);border-radius:10px;padding:12px;margin-top:8px}
+.qi-subject{font-weight:700;margin-bottom:8px}
+.qi-email pre{white-space:pre-wrap;font:inherit;font-size:14px;line-height:1.55;margin:0}
+.activity{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.activity li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px}
+.act-ico{color:var(--muted);text-align:center}
+.act-replied .act-ico,.act-sent .act-ico{color:var(--green)}
+.act-error .act-ico,.act-bounce .act-ico,.act-opt_out .act-ico{color:var(--red)}
+.dnc{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:4px;max-height:260px;overflow:auto}
+.dnc li{display:flex;justify-content:space-between;align-items:center;font-size:13px}
+.linkish{background:none;border:0;padding:0;color:var(--navy-2);text-decoration:underline;cursor:pointer;font:inherit}
