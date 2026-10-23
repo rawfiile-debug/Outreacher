@@ -12,7 +12,7 @@ const NAV = [
 ];
 const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
 
-export function AppShell({ email, frameUrl, children }: { email: string; frameUrl: string; children: React.ReactNode }) {
+export function AppShell({ email, children }: { email: string; children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   async function signOut() {
@@ -30,7 +30,6 @@ export function AppShell({ email, frameUrl, children }: { email: string; frameUr
               <Link key={n.href} href={n.href} className={isActive(path, n.href) ? 'active' : ''} aria-current={isActive(path, n.href) ? 'page' : undefined}>{n.label}</Link>
             ))}
           </nav>
-          <a className="btn side-new" href={frameUrl} target="_blank" rel="noopener">Open FRAME ↗</a>
           <div className="side-note">
             <strong>SIGNED IN</strong>{email}
             <div><button type="button" onClick={signOut}>Sign out</button></div>

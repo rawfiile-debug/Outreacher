@@ -6,5 +6,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect('/login');
-  return <AppShell email={data.user.email ?? ''} frameUrl={process.env.FRAME_URL || 'https://rawfiile-invoice-studio.vercel.app'}>{children}</AppShell>;
+  return <AppShell email={data.user.email ?? ''}>{children}</AppShell>;
 }
