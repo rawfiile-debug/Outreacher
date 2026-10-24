@@ -3,7 +3,7 @@
 export type Settings = {
   enabled: boolean; mode: 'approve' | 'auto'; daily_new_limit: number; send_days: number[]; window_start: string; window_end: string;
   follow_up_days: number; min_fit: number; targets: string[]; sender_name: string; portfolio_url: string; require_companies_house: boolean;
-  approve_mode_since: string | null; inbox_checked_at: string | null; last_send_at: string | null;
+  approve_mode_since: string | null; work_library: string; inbox_checked_at: string | null; last_send_at: string | null;
 };
 
 /** The wall-clock time in London, which is what "working hours" means here. */

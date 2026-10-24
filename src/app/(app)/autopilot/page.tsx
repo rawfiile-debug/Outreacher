@@ -168,12 +168,15 @@ function SettingsForm({ s, busy, onSave }: { s: Settings; busy: boolean; onSave:
           <button key={d} type="button" className={f.send_days.includes(i) ? 'on' : ''} onClick={() => set('send_days', f.send_days.includes(i) ? f.send_days.filter((x) => x !== i) : [...f.send_days, i].sort())}>{d}</button>))}</div></div>
         <div className="field"><label htmlFor="ap-fit">Lowest fit to contact (0 to 10)</label><input id="ap-fit" type="number" min={0} max={10} value={f.min_fit} onChange={(e) => set('min_fit', Number(e.target.value))} /></div>
         <div className="field"><label htmlFor="ap-name">Sign emails as</label><input id="ap-name" value={f.sender_name} onChange={(e) => set('sender_name', e.target.value)} /></div>
+        <div className="field full"><label htmlFor="ap-work">My work to mention (one project per line)</label>
+          <textarea id="ap-work" rows={7} value={f.work_library} onChange={(e) => set('work_library', e.target.value)} />
+          <span className="hint">Autopilot mentions the one closest to each business. Only list finished work you are happy to be asked about.</span></div>
         <div className="field full"><label htmlFor="ap-url">Portfolio link</label><input id="ap-url" value={f.portfolio_url} onChange={(e) => set('portfolio_url', e.target.value)} /></div>
         <label className="check full"><input type="checkbox" checked={f.require_companies_house} onChange={(e) => set('require_companies_house', e.target.checked)} /> Only contact businesses found on Companies House (limited companies)</label>
       </div>
       <button type="button" className="primary" style={{ marginTop: 12 }} disabled={busy || !targets.length || !f.send_days.length || !/^https:\/\//.test(f.portfolio_url)}
         onClick={() => onSave({ targets, daily_new_limit: f.daily_new_limit, follow_up_days: f.follow_up_days, window_start: f.window_start, window_end: f.window_end,
-          send_days: f.send_days, min_fit: f.min_fit, sender_name: f.sender_name.trim() || 'Michael Clavier', portfolio_url: f.portfolio_url.trim(), require_companies_house: f.require_companies_house })}>Save settings</button>
+          send_days: f.send_days, min_fit: f.min_fit, sender_name: f.sender_name.trim() || 'Michael Clavier', portfolio_url: f.portfolio_url.trim(), work_library: f.work_library.trim(), require_companies_house: f.require_companies_house })}>Save settings</button>
     </div>
   );
 }
