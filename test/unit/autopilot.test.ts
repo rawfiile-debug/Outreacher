@@ -74,6 +74,11 @@ describe('the follow-up', () => {
     expect(f.body.trim().endsWith(OPT_OUT_LINE)).toBe(true);
     expect(f.body.split(/\s+/).length).toBeLessThan(90);
   });
+  it('follows the five line shape: an open question, then a small ask', () => {
+    const f = followUpEmail({ firstName: 'Sam', company: 'Arches Club', firstSubject: 'Your Friday series', ...opts });
+    expect(f.body).toMatch(/How open would Arches Club be to .+\?/);
+    expect(f.body).toMatch(/10-minute call/);
+  });
 });
 
 describe('reading replies', () => {
