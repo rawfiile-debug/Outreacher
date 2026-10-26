@@ -6,12 +6,12 @@ import { must, useQuery } from '@/components/useQuery';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { suggestAuto, type Settings } from '@/lib/autopilot/schedule';
 
-type Email = { id: string; contact_id: string; kind: 'first' | 'follow_up'; status: string; to_email: string; subject: string; body: string; sent_at: string | null; created_at: string; error: string;
+type Email = { id: string; contact_id: string; kind: 'first' | 'follow_up'; status: string; to_email: string; subject: string; body: string; sent_at: string | null; created_at: string; approved_at: string | null; error: string;
   studio_contacts: { name: string; company: string; website: string; research: string; fit_score: number | null; category: string } | null };
 type Activity = { id: number; kind: string; message: string; created_at: string };
 type Suppression = { id: number; value: string; kind: string; reason: string; created_at: string };
 type Data = { s: (Settings & { owner_id: string; last_tick_at: string | null; last_error: string }) | null;
-  pending: Email[]; approved: number; sentToday: number; activity: Activity[]; suppressions: Suppression[] };
+  pending: Email[]; approved: Email[]; sentToday: number; activity: Activity[]; suppressions: Suppression[] };
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'short' });
@@ -26,12 +26,12 @@ function AutopilotInner() {
     const [s, pending, approved, sent, act, sup] = await Promise.all([
       supabase.from('studio_autopilot').select('*').maybeSingle(),
       supabase.from('studio_emails').select('*, studio_contacts(name, company, website, research, fit_score, category)').eq('status', 'pending').order('created_at').limit(50),
-      supabase.from('studio_emails').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+      supabase.from('studio_emails').select('*, studio_contacts(name, company, website, research, fit_score, category)').eq('status', 'approved').order('approved_at').limit(50),
       supabase.from('studio_emails').select('id', { count: 'exact', head: true }).eq('status', 'sent').gte('sent_at', today.toISOString()),
       supabase.from('studio_activity').select('*').order('created_at', { ascending: false }).limit(60),
       supabase.from('studio_suppressions').select('*').order('created_at', { ascending: false }).limit(200),
     ]);
-    return { s: must(s) as Data['s'], pending: must(pending) as Email[], approved: approved.count ?? 0,
+    return { s: must(s) as Data['s'], pending: must(pending) as Email[], approved: must(approved) as Email[],
       sentToday: sent.count ?? 0, activity: must(act) as Activity[], suppressions: must(sup) as Suppression[] };
   }, []);
 
@@ -63,6 +63,21 @@ function AutopilotInner() {
     if (status === 'skipped') await supabase.from('studio_contacts').update({ stage: 'Not now', notes: 'Skipped in the Autopilot queue.' }).eq('id', e.contact_id);
   }, status === 'approved' ? 'Approved. It will go out in the next sending slot.' : 'Skipped');
 
+  // Queued (approved) emails can still be changed until the scheduled run picks them up. Every update is
+  // limited to rows that are still 'approved', so an email that is being sent or has gone out is never touched.
+  const GONE = 'This email is already being sent or has gone out, so it can no longer be changed.';
+  const changeQueued = (e: Email, patch: Record<string, unknown>, ok: string) => run(e.id, async () => {
+    const rows = must(await supabase.from('studio_emails').update(patch).eq('id', e.id).eq('status', 'approved').select('id')) as { id: string }[];
+    if (!rows.length) throw new Error(GONE);
+    if (patch.status === 'skipped' && e.kind === 'first') await supabase.from('studio_contacts').update({ stage: 'Not now', notes: 'Removed from the Autopilot queue.' }).eq('id', e.contact_id);
+  }, ok);
+  const saveQueued = (e: Email, edits: { subject: string; body: string }) => changeQueued(e, edits, 'Changes saved. It is still queued to send.');
+  const unqueue = (e: Email) => changeQueued(e, { status: 'pending', approved_at: null }, 'Moved back to Approve emails');
+  const removeQueued = (e: Email) => {
+    if (confirm(`Remove the email to ${e.studio_contacts?.company || e.to_email} from the queue? It will not be sent.`))
+      changeQueued(e, { status: 'skipped' }, 'Removed from the queue');
+  };
+
   return (
     <>
       <PageHeader crumb="AUTOPILOT" title="Autopilot" sub="Finds London businesses that need photos and video, writes to them, follows up once, and stops when they reply." />
@@ -76,7 +91,7 @@ function AutopilotInner() {
         <div className="stat"><div className="label">Status</div><div className="value" style={{ fontSize: 22 }}>{s.enabled ? (s.mode === 'auto' ? 'Automatic' : 'Approving') : 'Off'}</div>
           <div className="hint">{s.last_tick_at ? `Last run ${when(s.last_tick_at)}` : 'Not run yet'}</div></div>
         <div className="stat"><div className="label">Waiting for you</div><div className="value">{data.pending.length}</div><div className="hint">first emails to approve</div></div>
-        <div className="stat"><div className="label">Queued to send</div><div className="value">{data.approved}</div><div className="hint">sent at the next run</div></div>
+        <div className="stat"><div className="label">Queued to send</div><div className="value">{data.approved.length}</div><div className="hint">sent at the next run</div></div>
         <div className="stat"><div className="label">Sent today</div><div className="value">{data.sentToday}</div><div className="hint">7 a day at most</div></div>
       </div>
       {s.last_error ? <div className="notice error">Last run stopped: {s.last_error}</div> : null}
@@ -93,6 +108,13 @@ function AutopilotInner() {
               }}>Approve all ({data.pending.length})</button> : null}</div>
             {data.pending.length ? data.pending.map((e) => <QueueItem key={e.id} e={e} busy={busy === e.id} onApprove={(ed) => decide(e, 'approved', ed)} onSkip={() => decide(e, 'skipped')} />)
               : <p className="small">{s.enabled ? 'Nothing waiting. New businesses appear here after each morning run.' : 'Switch Autopilot on to start finding businesses.'}</p>}
+          </div>
+          <div className="panel">
+            <h2>Queued to send</h2>
+            <p className="sub">Approved emails waiting for the next run. Open one to read it, change it, move it back to approval or take it out of the queue.</p>
+            {data.approved.length ? data.approved.map((e) => <QueuedItem key={e.id} e={e} busy={busy === e.id}
+              onSave={(ed) => saveQueued(e, ed)} onUnqueue={() => unqueue(e)} onRemove={() => removeQueued(e)} />)
+              : <p className="small">Nothing queued.</p>}
           </div>
           <div className="panel">
             <h2>Activity</h2>
@@ -145,6 +167,43 @@ function QueueItem({ e, busy, onApprove, onSkip }: { e: Email; busy: boolean; on
         <button type="button" disabled={busy} onClick={() => setEditing(!editing)}>{editing ? 'Done editing' : 'Edit'}</button>
         <button type="button" className="quiet" disabled={busy} onClick={onSkip}>Skip this business</button>
       </div>
+    </div>
+  );
+}
+
+function QueuedItem({ e, busy, onSave, onUnqueue, onRemove }: { e: Email; busy: boolean; onSave: (edits: { subject: string; body: string }) => void; onUnqueue: () => void; onRemove: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [subject, setSubject] = useState(e.subject);
+  const [body, setBody] = useState(e.body);
+  const c = e.studio_contacts;
+  useEffect(() => { setEditing(false); setSubject(e.subject); setBody(e.body); }, [e.subject, e.body]); // saved: show the stored version
+  const changed = subject.trim() !== e.subject || body.trim() !== e.body;
+  return (
+    <div className="queue-item">
+      <div className="qi-head">
+        <div><strong>{c?.company || e.to_email}</strong>{c?.name ? ` · ${c.name}` : ''}
+          <div className="small">{e.kind === 'follow_up' ? 'Follow-up' : 'First email'} · {e.to_email}{e.approved_at ? ` · approved ${when(e.approved_at)}` : ''}</div>
+          {!open ? <div className="small qi-subject" style={{ marginTop: 4 }}>{e.subject}</div> : null}</div>
+        <button type="button" className="quiet" onClick={() => { setOpen(!open); setEditing(false); setSubject(e.subject); setBody(e.body); }} aria-expanded={open}>{open ? 'Hide' : 'View'}</button>
+      </div>
+      {open ? (<>
+        {c?.research ? <p className="small qi-why">{c.research}</p> : null}
+        {editing ? (<>
+          <div className="field"><label>Subject</label><input value={subject} onChange={(ev) => setSubject(ev.target.value)} maxLength={200} /></div>
+          <div className="field" style={{ marginTop: 8 }}><label>Email</label><textarea rows={14} value={body} onChange={(ev) => setBody(ev.target.value)} maxLength={5000} /></div>
+        </>) : (
+          <div className="qi-email"><div className="qi-subject">{e.subject}</div><pre>{e.body}</pre></div>
+        )}
+        <div className="inline-actions" style={{ marginTop: 10 }}>
+          {editing ? (<>
+            <button type="button" className="primary" disabled={busy || !changed || !subject.trim() || !body.trim()} onClick={() => onSave({ subject: subject.trim(), body: body.trim() })}>{busy ? <span className="spinner" /> : null} Save changes</button>
+            <button type="button" disabled={busy} onClick={() => { setEditing(false); setSubject(e.subject); setBody(e.body); }}>Cancel</button>
+          </>) : <button type="button" disabled={busy} onClick={() => setEditing(true)}>Edit</button>}
+          {e.kind === 'first' ? <button type="button" disabled={busy} onClick={onUnqueue}>Back to approval</button> : null}
+          <button type="button" className="quiet" disabled={busy} onClick={onRemove}>Remove from queue</button>
+        </div>
+      </>) : null}
     </div>
   );
 }

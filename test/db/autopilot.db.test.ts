@@ -38,6 +38,19 @@ describe('email queue', () => {
     expect(await qa(intruder, 'select id from studio_emails where id = $1', [e.id])).toEqual([]);
   });
 
+  it('lets the owner edit, unqueue or remove an approved email that has not been sent yet', async () => {
+    const c = (await q1(owner, `insert into studio_contacts(name, email) values ('Queued', 'queued@x.test') returning id`)).id;
+    const e = await asServer(`insert into studio_emails(owner_id, contact_id, kind, status, approved_at, to_email, subject, body) values ($1, $2, 'first', 'approved', now(), 'queued@x.test', 's', 'b') returning id`, [owner, c]);
+    expect((await q1(owner, `update studio_emails set subject = 's2', body = 'b2' where id = $1 and status = 'approved' returning subject`, [e.id])).subject).toBe('s2');
+    expect((await q1(owner, `update studio_emails set status = 'pending', approved_at = null where id = $1 and status = 'approved' returning status`, [e.id])).status).toBe('pending');
+    await q1(owner, `update studio_emails set status = 'approved', approved_at = now() where id = $1 returning id`, [e.id]);
+    expect((await q1(owner, `update studio_emails set status = 'skipped' where id = $1 and status = 'approved' returning status`, [e.id])).status).toBe('skipped');
+    expect(await qa(intruder, `update studio_emails set status = 'skipped' where id = $1 returning id`, [e.id])).toEqual([]);
+    // Once the scheduled run has claimed it for sending, the owner can no longer change it.
+    const f = await asServer(`insert into studio_emails(owner_id, contact_id, kind, status, to_email, subject, body) values ($1, $2, 'first', 'failed', 'queued@x.test', 's', 'b') returning id`, [owner, c]);
+    expect(await qa(owner, `update studio_emails set body = 'late edit' where id = $1 returning id`, [f.id])).toEqual([]);
+  });
+
   it('allows only one first email and one follow-up per contact', async () => {
     const c = (await q1(owner, `insert into studio_contacts(name, email) values ('Once', 'once@x.test') returning id`)).id;
     await asServer(`insert into studio_emails(owner_id, contact_id, kind, to_email, subject, body) values ($1, $2, 'first', 'once@x.test', 's', 'b')`, [owner, c]);
