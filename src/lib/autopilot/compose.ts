@@ -27,7 +27,9 @@ export function finishFirstEmail(d: Draft, opts: { senderName: string; portfolio
   // Strip any sign-off the writer added, then add the one true sign-off and the opt-out line.
   body = body.replace(/\n+(best|best wishes|kind regards|regards|thanks|many thanks|cheers|all the best|warmly),?\s*\n[\s\S]*$/i, '').trim();
   body = body.replace(/\n+michael( clavier)?\s*$/i, '').trim();
-  if (!body.includes(opts.portfolioUrl.replace(/^https:\/\//, '').replace(/\/$/, ''))) body += `\n\nYou can see my work here: ${opts.portfolioUrl}`;
+  const site = opts.portfolioUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (!body.includes(site)) body += `\n\nYou can see my work here: ${site}`;
+  if (!/\bIG: RAWFIILE\b/.test(body)) body += '\nIG: RAWFIILE';
   const words = body.split(/\s+/).length;
   if (words < 40) return { ok: false, reason: 'too short' };
   if (words > 190) return { ok: false, reason: 'too long' };
@@ -35,15 +37,21 @@ export function finishFirstEmail(d: Draft, opts: { senderName: string; portfolio
   return { ok: true, email: { subject, body } };
 }
 
-/** The one follow-up, sent in the same thread a couple of weeks later. Short and easy to ignore. */
+/**
+ * The one follow-up, sent in the same thread a couple of weeks later. A short version of the five line method:
+ * an open question they can't answer with a flat no, then an easy, small call to action. Easy to ignore.
+ */
 export function followUpEmail(opts: { firstName: string; company: string; firstSubject: string; senderName: string; portfolioUrl: string }): Draft {
   const subject = /^re:/i.test(opts.firstSubject) ? opts.firstSubject : `Re: ${opts.firstSubject}`;
   const body = [
     `Hi ${opts.firstName || 'there'},`,
     '',
-    `Just bringing this back up in case it got buried. If ${opts.company || 'you'} ${opts.company ? 'has' : 'have'} any shoots, events or content coming up in the next few months, I'd be glad to help, even with something small to start.`,
+    `Just bringing this back up in case it got buried. How open would ${opts.company || 'you'} be to trying something small together on your next shoot or campaign?`,
     '',
-    `My work is here if it's useful: ${opts.portfolioUrl}`,
+    "If it's not the right time, no problem at all. If it is, would a 10-minute call next week suit?",
+    '',
+    `My work is here if it's useful: ${opts.portfolioUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}`,
+    'IG: RAWFIILE',
     '',
     'Best,',
     opts.senderName,

@@ -1,18 +1,19 @@
 import type { Contact } from './types';
 
 // The one follow-up email, two weeks after the first. Short, no price, signed as Michael, opened in Gmail as a draft
-// so it can be adjusted before sending.
+// so it can be adjusted before sending. Follows the five line method: an open question, then a small, easy ask.
 export function followUpEmail(c: Pick<Contact, 'name' | 'company' | 'email'>, sender = 'Michael Clavier') {
   const first = (c.name || '').trim().split(/\s+/)[0] || 'there';
   const subject = `Following up${c.company ? `, ${c.company}` : ''}`;
   const body = [
     `Hi ${first},`,
     '',
-    `Just bringing my email from a couple of weeks ago back to the top of your inbox in case it got buried. I'd love to help with any photo or video work you have coming up${c.company ? ` at ${c.company}` : ''}, whether that's events, editorial or short-form content.`,
+    `Just bringing my email from a couple of weeks ago back up in case it got buried. How open would ${c.company || 'you'} be to trying something small together on your next shoot or campaign?`,
     '',
-    'My recent work is here if it helps: https://www.rawfiile.co.uk',
+    "If it's not the right time, no problem at all. If it is, would a 10-minute call next week suit?",
     '',
-    "No worries at all if the timing isn't right.",
+    'My work is here if it helps: www.rawfiile.co.uk',
+    'IG: RAWFIILE',
     '',
     'Best,',
     sender,

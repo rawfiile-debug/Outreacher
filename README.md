@@ -2,7 +2,7 @@
 
 Michael Clavier's working tools for RAWFIILE, alongside FRAME (invoices, quotes and contracts):
 
-- **Outreach**: everyone contacted for photo and video work, their stage (To contact, Emailed, Followed up, Replied, Meeting, Won, Not now), and the one follow-up a week after the first email. "Write follow-up" opens a ready-written Gmail draft (short, no price, signed Michael Clavier) to check and send yourself. Paste a list of contacts, or import from the Notion Email Contacts database.
+- **Outreach**: everyone contacted for photo and video work, their stage (To contact, Emailed, Followed up, Replied, Meeting, Won, Not now), and the one follow-up two weeks after the first email. "Write follow-up" opens a ready-written Gmail draft (short, no price, signed Michael Clavier) to check and send yourself. Paste a list of contacts, or import from the Notion Email Contacts database.
 - **Call sheets**: date, call and wrap times, location with map, parking, transport and nearest A&E, a schedule, crew with tap-to-call numbers, kit, wardrobe and notes. Shared as a private link that works on any phone and prints cleanly to A4.
 - **Briefs & moodboards**: objective, audience, deliverables, mood, colour palette, styling, locations, do and avoid, and a moodboard of photos, links and notes. Shared as a private link where the client can comment and sign the brief off. "Make call sheet" starts a call sheet from a brief.
 
@@ -13,7 +13,7 @@ Autopilot finds London businesses that use photos and video, writes each one a s
 It costs nothing extra: the work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 08:40 and 13:40, using Michael's existing Gmail and Supabase connections and Claude's own web search. No API keys and no paid services. The site only stores the settings, the approval queue and the history.
 
 - **Finding (morning run):** web searches for the targets set on the Autopilot page. Each site is read for an address on the business's own domain. Free webmail, privacy, jobs and accounts inboxes, platforms, directories and press are skipped.
-- **Writing:** fit judged 0 to 10; emails follow fixed rules: no price, no long dashes, no placeholders, the portfolio link, signed Michael Clavier, and an opt-out line ("reply 'no thanks'").
+- **Writing:** fit judged 0 to 10; first emails use the five line method (an open question, a personalised signal about one of their recent campaigns, who Michael is, a teaser of the idea, and a 10-minute call on two named days), and every email follows fixed rules: no price, no long dashes, no placeholders, the portfolio link, signed Michael Clavier, and an opt-out line ("reply 'no thanks'").
 - **Approving:** in "Approve each email" mode new emails wait on the Autopilot page. After two weeks the page suggests switching to Automatic. Follow-ups send on their own.
 - **Replies:** each run checks rawfiile@gmail.com. A reply moves the contact to Replied and cancels anything queued. Opt-outs and bounces go on the do-not-contact list for good. Out-of-office replies are ignored.
 
