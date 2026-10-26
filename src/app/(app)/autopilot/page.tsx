@@ -84,7 +84,7 @@ function AutopilotInner() {
 
       <div className="panel">
         <h2>How it runs</h2>
-        <p className="small">Claude does the work as a scheduled task on your existing plan: no API keys and nothing extra to pay for. Every weekday at about 08:40 it checks rawfiile@gmail.com for replies, sends the emails you have approved and any follow-ups that are due, and finds new businesses for you to approve. At about 13:40 it checks replies again and sends anything you approved since the morning. Emails go from rawfiile@gmail.com, at most 7 a day in total.</p>
+        <p className="small">Claude does the work as a scheduled task on your existing plan: no API keys and nothing extra to pay for. Every weekday at about 06:40 it checks rawfiile@gmail.com for replies, sends the emails you have approved and any follow-ups that are due, and finds new businesses for you to approve. At about 13:40 it checks replies again and sends anything you approved since the morning. Emails go from rawfiile@gmail.com, at most 7 a day in total.</p>
       </div>
 
       <div className="stats">
@@ -102,7 +102,7 @@ function AutopilotInner() {
       <div className="two-col">
         <div>
           <div className="panel">
-            <div className="section-head"><div><h2>Approve emails</h2><p className="sub">{s.mode === 'auto' ? 'Automatic mode: new emails send without waiting here.' : 'Read, edit if you like, then approve. Approved emails go out at the next run (about 08:40 or 13:40 on weekdays).'}</p></div>
+            <div className="section-head"><div><h2>Approve emails</h2><p className="sub">{s.mode === 'auto' ? 'Automatic mode: new emails send without waiting here.' : 'Read, edit if you like, then approve. Approved emails go out at the next run (about 06:40 or 13:40 on weekdays).'}</p></div>
               {data.pending.length > 1 ? <button type="button" className="primary" disabled={!!busy} onClick={() => {
                 if (confirm(`Approve all ${data.pending.length} emails as written?`)) run('all', async () => { must(await supabase.from('studio_emails').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('status', 'pending').select('id')); }, 'All approved');
               }}>Approve all ({data.pending.length})</button> : null}</div>
