@@ -47,7 +47,7 @@ describe('the house rules for first emails', () => {
     if (!r.ok) return;
     expect(r.email.subject).toBe('Your Friday series, photos');
     expect(r.email.body).not.toMatch(/[—―]/);
-    expect(r.email.body).toContain('https://www.rawfiile.co.uk');
+    expect(r.email.body).toContain('You can see my work here: www.rawfiile.co.uk\nIG: RAWFIILE');
     expect(r.email.body.endsWith(`Best,\nMichael Clavier\n\n${OPT_OUT_LINE}`)).toBe(true);
     expect(r.email.body.match(/Michael Clavier/g)).toHaveLength(1);
   });
@@ -78,6 +78,12 @@ describe('the follow-up', () => {
     const f = followUpEmail({ firstName: 'Sam', company: 'Arches Club', firstSubject: 'Your Friday series', ...opts });
     expect(f.body).toMatch(/How open would Arches Club be to .+\?/);
     expect(f.body).toMatch(/10-minute call/);
+  });
+  it('points to the website and Instagram', () => {
+    const f = followUpEmail({ firstName: 'Sam', company: 'Arches Club', firstSubject: 'Your Friday series', ...opts });
+    expect(f.body).toContain('www.rawfiile.co.uk');
+    expect(f.body).not.toContain('https://');
+    expect(f.body).toContain('IG: RAWFIILE');
   });
 });
 

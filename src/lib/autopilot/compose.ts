@@ -27,7 +27,9 @@ export function finishFirstEmail(d: Draft, opts: { senderName: string; portfolio
   // Strip any sign-off the writer added, then add the one true sign-off and the opt-out line.
   body = body.replace(/\n+(best|best wishes|kind regards|regards|thanks|many thanks|cheers|all the best|warmly),?\s*\n[\s\S]*$/i, '').trim();
   body = body.replace(/\n+michael( clavier)?\s*$/i, '').trim();
-  if (!body.includes(opts.portfolioUrl.replace(/^https:\/\//, '').replace(/\/$/, ''))) body += `\n\nYou can see my work here: ${opts.portfolioUrl}`;
+  const site = opts.portfolioUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (!body.includes(site)) body += `\n\nYou can see my work here: ${site}`;
+  if (!/\bIG: RAWFIILE\b/.test(body)) body += '\nIG: RAWFIILE';
   const words = body.split(/\s+/).length;
   if (words < 40) return { ok: false, reason: 'too short' };
   if (words > 190) return { ok: false, reason: 'too long' };
@@ -48,7 +50,8 @@ export function followUpEmail(opts: { firstName: string; company: string; firstS
     '',
     "If it's not the right time, no problem at all. If it is, would a 10-minute call next week suit?",
     '',
-    `My work is here if it's useful: ${opts.portfolioUrl}`,
+    `My work is here if it's useful: ${opts.portfolioUrl.replace(/^https?:\/\//, '').replace(/\/$/, '')}`,
+    'IG: RAWFIILE',
     '',
     'Best,',
     opts.senderName,
