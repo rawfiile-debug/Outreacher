@@ -168,7 +168,7 @@ export default function TodayPage() {
               <div className="small">{[g.funder, g.amount].filter(Boolean).join(' · ')}</div>
               <div className="small" style={{ marginTop: 4 }}>{deadlineLabel(g)}</div>
             </Link>
-          )) : <div className="empty">{eligible.length || applying.length ? 'No dated deadlines coming up.' : 'No grants yet. Searched daily until 5 eligible ones are found.'}</div>}
+          )) : <div className="empty">{eligible.length || applying.length ? 'No dated deadlines coming up.' : 'No grants yet. Search from the Grants page.'}</div>}
         </section>
       </div>
 

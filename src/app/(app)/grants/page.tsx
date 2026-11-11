@@ -6,6 +6,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 import { useToast } from '@/components/Toast';
 import { must, useQuery } from '@/components/useQuery';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { runNow } from '@/lib/run';
 import {
   ELIGIBILITY, GRANT_FOCUS, GRANT_LOCATIONS, GRANT_MIN_AMOUNTS, GRANT_STAGES, GRANT_STATUSES, GRANT_TYPES,
   daysUntil, deadlineLabel, labelOf, when, type Grant, type Job,
@@ -51,19 +52,20 @@ export default function GrantsPage() {
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
-    try { await fn(); toast(ok); await reload(); }
+    try { await fn(); if (ok) toast(ok); await reload(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Something went wrong', 'error'); }
     finally { setBusy(false); }
   }
   const queueSearch = async () => {
     const res = await supabase.from('outreach_jobs').insert({ kind: 'find_grants' }).select('id');
     if (res.error && res.error.code !== '23505') throw new Error(res.error.message);
+    toast((await runNow('find_grants')).message);
   };
   const savePrefs = () => act(async () => {
     if (!prefs!.grant_types.length || !prefs!.grant_focus.length || !prefs!.grant_locations.length) throw new Error('Pick at least one option in each box.');
     must(await supabase.from('outreach_settings').update(prefs!).eq('owner_id', data!.prefs!.owner_id).select('owner_id').single());
     await queueSearch();
-  }, 'Saved. A new search is queued for the next hourly run.');
+  }, '');
 
   if (error) return <div className="notice error">{error} <button onClick={reload}>Retry</button></div>;
   if (!data) return <div className="skeleton">Loading…</div>;
@@ -74,13 +76,13 @@ export default function GrantsPage() {
 
   return (
     <>
-      <PageHeader crumb="Outreach" title="Grants" sub="Searched daily until at least 5 open grants you are eligible for are listed, then weekly." />
+      <PageHeader crumb="Outreach" title="Grants" sub="Searches start when you press Search now or Save and search." />
 
       {!data.profileReady ? <div className="notice warn">Eligibility is judged from your profile. <Link href="/profile">Build your profile summary</Link> first for the best results.</div> : null}
 
       <section className="panel">
         <div className="section-head"><div><h2>What I want from a grant</h2>
-          <p className="sub">{data.prefs.grants_searched_at ? `Last searched ${when(data.prefs.grants_searched_at)}.` : 'Not searched yet.'}{searching ? ' A search is queued for the next hourly run.' : ''}</p></div></div>
+          <p className="sub">{data.prefs.grants_searched_at ? `Last searched ${when(data.prefs.grants_searched_at)}.` : 'Not searched yet.'}{searching ? ' Claude is searching now.' : ''}</p></div></div>
         <div className="form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
           <MultiSelect label="Type of support" options={GRANT_TYPES} value={prefs.grant_types} onChange={set('grant_types')} />
           <MultiSelect label="Focus" options={GRANT_FOCUS} value={prefs.grant_focus} onChange={set('grant_focus')} />
@@ -93,7 +95,7 @@ export default function GrantsPage() {
         </div>
         <div className="row" style={{ marginTop: 14 }}>
           <button className="primary" disabled={busy} onClick={savePrefs}>Save and search</button>
-          <button disabled={busy || Boolean(searching)} onClick={() => act(queueSearch, 'Search queued for the next hourly run.')}>Search now</button>
+          <button disabled={busy || Boolean(searching)} onClick={() => act(queueSearch, '')}>Search now</button>
         </div>
       </section>
 
@@ -119,7 +121,7 @@ export default function GrantsPage() {
               <div className="small" style={{ marginTop: 6 }}>{deadlineLabel(g)}</div>
             </div>
           </Link>
-        )) : <div className="empty">{data.grants.length ? 'Nothing here.' : 'No grants yet. The first search runs at the next hourly run after you save your preferences.'}</div>}
+        )) : <div className="empty">{data.grants.length ? 'Nothing here.' : 'No grants yet. Set your preferences and press Save and search.'}</div>}
       </section>
     </>
   );

@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/AppShell';
 import { useToast } from '@/components/Toast';
 import { must, useQuery } from '@/components/useQuery';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { runNow } from '@/lib/run';
 import { documentText, imageText } from '@/lib/extract';
 import { APPLY_AS, instantSummary, safeFileName, when, type Job, type Profile } from '@/lib/outreach';
 
@@ -49,7 +50,7 @@ export default function ProfilePage() {
 
   async function act(key: string, fn: () => Promise<unknown>, ok: string) {
     setBusy(key);
-    try { await fn(); toast(ok); await reload(); }
+    try { await fn(); if (ok) toast(ok); await reload(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Something went wrong', 'error'); }
     finally { setBusy(''); }
   }
@@ -105,7 +106,8 @@ export default function ProfilePage() {
   const polish = () => act('polish', async () => {
     const res = await supabase.from('outreach_jobs').insert({ kind: 'build_profile' }).select('id');
     if (res.error && res.error.code !== '23505') throw new Error(res.error.message);
-  }, 'Queued. Claude will rewrite it from your CV, website and screenshots within the hour.');
+    toast((await runNow('build_profile')).message);
+  }, '');
   const saveSummary = (confirmed: boolean) => act('summary', () => update({ summary: summary.trim(), summary_confirmed: confirmed }), confirmed ? 'Summary confirmed' : 'Summary saved');
   const toggleApplyAs = (v: string) => setForm({ ...form, apply_as: form.apply_as.includes(v) ? form.apply_as.filter((x) => x !== v) : [...form.apply_as, v] });
   const field = (k: keyof Omit<Fields, 'apply_as' | 'website'>, label: string, hint: string, rows = 4) => (
@@ -122,8 +124,8 @@ export default function ProfilePage() {
             <button className="primary" disabled={!!busy} onClick={buildSummary}>{p.summary ? 'Rebuild now' : 'Build my summary'}</button>
             <button disabled={!!busy || Boolean(jobWaiting)} onClick={polish}>Polish with Claude</button>
           </div></div>
-        <p className="small" style={{ marginTop: -6 }}>Build my summary is instant and uses what you have typed below. Polish with Claude also reads your CV, website and screenshots and rewrites it properly, within the hour (8am to 8pm).</p>
-        {jobWaiting ? <div className="notice">Polish queued {when(data.job!.created_at)}. The hourly run will rewrite it and send you a notification.</div> : null}
+        <p className="small" style={{ marginTop: -6 }}>Build my summary is instant and uses what you have typed below. Polish with Claude also reads your CV, website and screenshots and rewrites it properly; it starts as soon as you press it and takes a few minutes.</p>
+        {jobWaiting ? <div className="notice">Claude is polishing your summary (started {when(data.job!.created_at)}). You will get a notification when it is ready; refresh this page to see it.</div> : null}
         {data.job?.status === 'failed' ? <div className="notice error">The last build failed: {data.job.error || 'unknown reason'}. Try again.</div> : null}
         {p.summary ? (
           <>

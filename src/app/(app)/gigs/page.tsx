@@ -5,6 +5,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 import { useToast } from '@/components/Toast';
 import { must, useQuery } from '@/components/useQuery';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { runNow } from '@/lib/run';
 import {
   GIG_LOCATIONS, GIG_MIN_BUDGETS, GIG_PAY, GIG_SOURCES, GIG_STATUSES, GIG_WORK_TYPES, labelOf, when, type Gig,
 } from '@/lib/outreach';
@@ -41,7 +42,7 @@ export default function GigsPage() {
 
   async function act(fn: () => Promise<unknown>, ok: string) {
     setBusy(true);
-    try { await fn(); toast(ok); await reload(); }
+    try { await fn(); if (ok) toast(ok); await reload(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Something went wrong', 'error'); }
     finally { setBusy(false); }
   }
@@ -50,6 +51,11 @@ export default function GigsPage() {
     if (!next.gig_work_types.length || !next.gig_pay.length || !next.gig_locations.length || !next.gig_sources.length) throw new Error('Pick at least one option in each box.');
     must(await supabase.from('outreach_settings').update(next).eq('owner_id', data!.prefs!.owner_id).select('owner_id').single());
   }, patch && 'gigs_enabled' in patch ? (patch.gigs_enabled ? 'Gig alerts are on' : 'Gig alerts are off') : 'Saved. The next hourly run uses these.');
+  const checkNow = () => act(async () => {
+    const res = await supabase.from('outreach_jobs').insert({ kind: 'check_gigs' }).select('id');
+    if (res.error && res.error.code !== '23505') throw new Error(res.error.message);
+    toast((await runNow('check_gigs')).message);
+  }, '');
   const setStatus = (g: Gig, status: string) => act(async () => { must(await supabase.from('outreach_gigs').update({ status }).eq('id', g.id).select('id').single()); }, `Marked ${labelOf(GIG_STATUSES, status).toLowerCase()}`);
   const copyReply = async (g: Gig) => { try { await navigator.clipboard.writeText(g.reply); toast('Reply copied'); } catch { toast('Could not copy. Select the text instead.', 'error'); } };
 
@@ -61,7 +67,7 @@ export default function GigsPage() {
 
   return (
     <>
-      <PageHeader crumb="Outreach" title="Gigs" sub="People looking for a photographer or videographer. Checked every hour, 8am to 8pm. Strong matches come as a push notification." />
+      <PageHeader crumb="Outreach" title="Gigs" sub="People looking for a photographer or videographer. Press Check for gigs now to search. Strong matches come as a push notification." />
 
       <section className="panel">
         <div className="section-head">
@@ -83,7 +89,10 @@ export default function GigsPage() {
             </select></div>
         </div>
         <p className="small" style={{ marginTop: 10 }}>LinkedIn, Facebook and Instagram are only searched where posts are public, so private groups are missed.</p>
-        <div className="row" style={{ marginTop: 10 }}><button className="primary" disabled={busy} onClick={() => savePrefs()}>Save</button></div>
+        <div className="row" style={{ marginTop: 10 }}>
+          <button className="primary" disabled={busy} onClick={() => savePrefs()}>Save</button>
+          <button disabled={busy} onClick={checkNow}>Check for gigs now</button>
+        </div>
       </section>
 
       <section className="panel">
@@ -112,7 +121,7 @@ export default function GigsPage() {
               </select>
             </div>
           </div>
-        )) : <div className="empty">{data.gigs.length ? 'Nothing here.' : 'No gigs found yet. The hourly run checks from 8am to 8pm.'}</div>}
+        )) : <div className="empty">{data.gigs.length ? 'Nothing here.' : 'No gigs found yet. Press Check for gigs now.'}</div>}
       </section>
     </>
   );

@@ -8,6 +8,7 @@ import { must, useQuery } from '@/components/useQuery';
 import { downloadPdf, downloadText, downloadWord } from '@/lib/download';
 import { documentText } from '@/lib/extract';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
+import { runNow } from '@/lib/run';
 import { ELIGIBILITY, GRANT_STATUSES, GRANT_TYPES, deadlineLabel, draftFileName, labelOf, when, type Grant, type Job } from '@/lib/outreach';
 
 type Data = { g: Grant; job: Job | null; summaryConfirmed: boolean };
@@ -36,7 +37,7 @@ export default function GrantPage() {
 
   async function act(key: string, fn: () => Promise<unknown>, ok: string) {
     setBusy(key);
-    try { await fn(); toast(ok); await reload(); }
+    try { await fn(); if (ok) toast(ok); await reload(); }
     catch (e) { toast(e instanceof Error ? e.message : 'Something went wrong', 'error'); }
     finally { setBusy(''); }
   }
@@ -60,7 +61,8 @@ export default function GrantPage() {
     await update({ form_text: formText.trim().slice(0, 40000), extra_info: extra.trim(), status: g.status === 'new' ? 'applying' : g.status });
     const res = await supabase.from('outreach_jobs').insert({ kind: 'draft_grant', ref_id: id }).select('id');
     if (res.error && res.error.code !== '23505') throw new Error(res.error.message);
-  }, 'Queued. Your draft will be ready within the hour.');
+    toast((await runNow('draft_grant')).message);
+  }, '');
   async function download() {
     const text = draft.trim();
     if (!text) { toast('Nothing to download yet', 'error'); return; }
@@ -115,7 +117,7 @@ export default function GrantPage() {
         {!data.summaryConfirmed ? <div className="notice warn" style={{ marginTop: 10 }}>Your profile summary is not confirmed yet. <Link href="/profile">Check it first</Link> so the draft gets your details right.</div> : null}
         <div className="row" style={{ marginTop: 12 }}>
           <button className="primary" disabled={!!busy || Boolean(drafting)} onClick={draftNow}>{g.draft ? 'Draft again' : 'Draft now'}</button>
-          {drafting ? <span className="small">Queued {when(data.job!.created_at)}. The hourly run (8am to 8pm) will write it.</span> : null}
+          {drafting ? <span className="small">Claude is writing it (started {when(data.job!.created_at)}). You will get a notification; refresh to see it.</span> : null}
           {data.job?.status === 'failed' ? <span className="small danger">Last draft failed: {data.job.error}</span> : null}
         </div>
       </section>
