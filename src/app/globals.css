@@ -128,3 +128,8 @@ tr:last-child td{border-bottom:0}
 .multi-menu .check{padding:4px 2px}
 .multi-button{min-height:42px}
 .multi-menu label.check{font-size:13px;color:var(--text)}
+.form-grid>*{min-width:0}
+.field{min-width:0}
+.multi-button{display:flex;width:100%;min-width:0;overflow:hidden;gap:8px}
+.multi-button span:first-child{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.multi-button span:last-child{flex:none}
