@@ -6,7 +6,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'OUTREACHER',
-  description: 'Outreach, call sheets and creative briefs for RAWFIILE.',
+  description: 'Outreach for RAWFIILE.',
   robots: { index: false, follow: false },
   icons: { icon: '/icon.svg' },
   appleWebApp: { capable: true, title: 'OUTREACHER', statusBarStyle: 'black-translucent' },

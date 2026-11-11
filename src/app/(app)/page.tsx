@@ -1,88 +1,142 @@
 'use client';
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/AppShell';
+import { useToast } from '@/components/Toast';
 import { must, useQuery } from '@/components/useQuery';
 import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
-import { addDays, formatDate, formatLongDate, today } from '@/lib/dates';
-import { followUpEmail, gmailComposeUrl } from '@/lib/followup';
-import type { Contact } from '@/lib/types';
+import { suggestAuto, when, type Activity, type Email, type Settings } from '@/lib/outreach';
 
-type Data = {
-  contacts: Contact[];
-  sheets: { id: string; title: string; client_name: string; shoot_date: string; call_time: string | null; shared_at: string | null }[];
-  briefs: { id: string; title: string; client_name: string; shared_at: string | null; approved_at: string | null }[];
-  comments: { id: number; brief_id: string; author_name: string; body: string; created_at: string; studio_briefs: { title: string } | null }[];
-};
+type Data = { s: Settings | null; pending: Email[]; queued: Email[]; sentToday: number; replies: number; activity: Activity[] };
+const WITH_CONTACT = '*, outreach_contacts(company, name, website, research, fit_score, category)';
+const ICON: Record<string, string> = { found: '◎', sent: '✉', follow_up: '↺', replied: '★', opt_out: '⦸', bounce: '!', error: '!', info: 'i' };
 
-export default function OverviewPage() {
+function londonMidnight(): string {
+  const d = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+  return new Date(`${d}T00:00:00`).toISOString();
+}
+
+export default function TodayPage() {
+  const toast = useToast();
   const supabase = createSupabaseBrowserClient();
-  const { data, error, loading, reload } = useQuery<Data>(async () => {
-    const t = today();
-    const [contacts, sheets, briefs, comments] = await Promise.all([
-      supabase.from('studio_contact_list').select('*').limit(2000),
-      supabase.from('studio_call_sheets').select('id, title, client_name, shoot_date, call_time, shared_at').gte('shoot_date', t).lte('shoot_date', addDays(t, 30)).order('shoot_date'),
-      supabase.from('studio_briefs').select('id, title, client_name, shared_at, approved_at').not('shared_at', 'is', null).is('approved_at', null).order('updated_at', { ascending: false }).limit(10),
-      supabase.from('studio_brief_comments').select('id, brief_id, author_name, body, created_at, studio_briefs(title)').eq('from_client', true).gte('created_at', addDays(t, -14)).order('created_at', { ascending: false }).limit(8),
+  const [busy, setBusy] = useState('');
+  const [editing, setEditing] = useState<string | null>(null);
+  const [draft, setDraft] = useState({ subject: '', body: '' });
+
+  const { data, setData, error, reload } = useQuery<Data>(async () => {
+    const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const [s, pending, queued, sent, replies, act] = await Promise.all([
+      supabase.from('outreach_settings').select('*').maybeSingle(),
+      supabase.from('outreach_emails').select(WITH_CONTACT).eq('status', 'pending').order('created_at').limit(50),
+      supabase.from('outreach_emails').select(WITH_CONTACT).eq('status', 'approved').order('approved_at').limit(50),
+      supabase.from('outreach_emails').select('id', { count: 'exact', head: true }).eq('status', 'sent').gte('sent_at', londonMidnight()),
+      supabase.from('outreach_activity').select('id', { count: 'exact', head: true }).eq('kind', 'replied').gte('created_at', weekAgo),
+      supabase.from('outreach_activity').select('*').order('created_at', { ascending: false }).limit(25),
     ]);
-    return { contacts: must(contacts) as Contact[], sheets: must(sheets) as Data['sheets'], briefs: must(briefs) as Data['briefs'], comments: must(comments) as unknown as Data['comments'] };
+    return { s: must(s) as Settings | null, pending: must(pending) as Email[], queued: must(queued) as Email[],
+      sentToday: sent.count ?? 0, replies: replies.count ?? 0, activity: must(act) as Activity[] };
   }, []);
 
+  useEffect(() => { // first visit: create the settings row (switched off)
+    if (data && !data.s) supabase.from('outreach_settings').insert({}).select('*').single()
+      .then(({ data: row }: { data: unknown }) => { if (row) setData({ ...data, s: row as Settings }); });
+  }, [data, setData, supabase]);
+
+  async function run(key: string, fn: () => Promise<unknown>, ok: string) {
+    setBusy(key);
+    try { await fn(); toast(ok); setEditing(null); await reload(); }
+    catch (e) { toast(e instanceof Error ? e.message : 'Something went wrong', 'error'); }
+    finally { setBusy(''); }
+  }
+  // Every change is limited to emails still in the expected state, so one already sending is never touched.
+  async function change(e: Email, from: string, patch: Record<string, unknown>) {
+    const rows = must(await supabase.from('outreach_emails').update(patch).eq('id', e.id).eq('status', from).select('id')) as { id: string }[];
+    if (!rows.length) throw new Error('This email has already gone out, so it can no longer be changed.');
+  }
+  const approve = (e: Email) => run(e.id, () => change(e, 'pending', { status: 'approved', approved_at: new Date().toISOString(), ...(editing === e.id ? draft : {}) }), 'Approved. It goes out in the next sending slot.');
+  const skip = (e: Email, from: string) => {
+    if (!confirm(`Skip ${e.outreach_contacts?.company || e.to_email}? This email will not be sent.`)) return;
+    run(e.id, async () => {
+      await change(e, from, { status: 'skipped' });
+      if (e.kind === 'first') await supabase.from('outreach_contacts').update({ stage: 'Not now' }).eq('id', e.contact_id);
+    }, 'Skipped');
+  };
+  const saveEdit = (e: Email, from: string) => run(e.id, () => change(e, from, draft), 'Changes saved');
+  const sendBack = (e: Email) => run(e.id, () => change(e, 'approved', { status: 'pending', approved_at: null }), 'Moved back to waiting');
+
   if (error) return <div className="notice error">{error} <button onClick={reload}>Retry</button></div>;
-  if (loading && !data) return <div className="skeleton">Loading…</div>;
-  const c = data!.contacts;
-  const due = c.filter((x) => x.follow_up_due);
-  const reminders = c.filter((x) => x.reminder_due && !x.follow_up_due);
-  const weekAgo = addDays(today(), -7);
-  const emailedThisWeek = c.filter((x) => x.first_emailed_on && x.first_emailed_on > weekAgo).length;
-  const replied = c.filter((x) => ['Replied', 'Meeting', 'Won'].includes(x.stage)).length;
-  const contacted = c.filter((x) => x.stage !== 'To contact').length;
+  if (!data?.s) return <div className="skeleton">Loading…</div>;
+  const s = data.s;
+
+  const card = (e: Email, from: 'pending' | 'approved') => {
+    const c = e.outreach_contacts;
+    const isEditing = editing === e.id;
+    return (
+      <div className="card" key={e.id}>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <strong>{c?.company || e.to_email}</strong>
+          <span className="small">{e.kind === 'follow_up' ? 'Follow-up' : `First email${c?.fit_score != null ? `, fit ${c.fit_score}/10` : ''}`}</span>
+        </div>
+        <div className="meta">To {e.to_email}{c?.website ? <> · <a href={c.website} target="_blank" rel="noreferrer">website</a></> : null}</div>
+        {c?.research && from === 'pending' ? <div className="small">{c.research}</div> : null}
+        {isEditing ? (
+          <div className="form-grid" style={{ gridTemplateColumns: '1fr', margin: '10px 0' }}>
+            <div className="field"><label>Subject</label><input value={draft.subject} onChange={(ev) => setDraft({ ...draft, subject: ev.target.value })} /></div>
+            <div className="field"><label>Email</label><textarea rows={14} value={draft.body} onChange={(ev) => setDraft({ ...draft, body: ev.target.value })} /></div>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginTop: 10 }}><span className="small">Subject:</span> {e.subject}</div>
+            <div className="email-body">{e.body}</div>
+          </>
+        )}
+        <div className="row">
+          {from === 'pending' ? <button className="primary" disabled={!!busy} onClick={() => approve(e)}>{isEditing ? 'Save and approve' : 'Approve'}</button> : null}
+          {isEditing
+            ? <>{from === 'approved' ? <button className="primary" disabled={!!busy} onClick={() => saveEdit(e, from)}>Save</button> : null}<button className="quiet" onClick={() => setEditing(null)}>Cancel</button></>
+            : <button disabled={!!busy} onClick={() => { setEditing(e.id); setDraft({ subject: e.subject, body: e.body }); }}>Edit</button>}
+          {from === 'approved' ? <button className="quiet" disabled={!!busy} onClick={() => sendBack(e)}>Send back</button> : null}
+          <button className="quiet danger" disabled={!!busy} onClick={() => skip(e, from)}>Skip</button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <>
-      <PageHeader crumb="OVERVIEW" title="Overview" sub={formatLongDate(today())} />
+      <PageHeader crumb="Outreach" title="Today" sub="Approve new emails, see what went out and who replied." />
+
+      {!s.enabled ? <div className="notice warn">Autopilot is off, so nothing is being found or sent. <Link href="/settings">Switch it on in Settings</Link>.</div> : null}
+      {s.last_error ? <div className="notice error">Last run had a problem: {s.last_error}</div> : null}
+      {suggestAuto(s) ? <div className="notice ok">You have been approving each email for two weeks. Happy with them? <Link href="/settings">Switch to automatic sending</Link>.</div> : null}
+
       <div className="stats">
-        <Link className="stat" href="/outreach"><div className="label">Follow-ups due</div><div className="value">{due.length}</div><div className="hint">two weeks after the first email</div></Link>
-        <Link className="stat" href="/outreach"><div className="label">Emailed this week</div><div className="value">{emailedThisWeek}</div><div className="hint">first emails sent</div></Link>
-        <Link className="stat" href="/outreach"><div className="label">Reply rate</div><div className="value">{contacted ? Math.round((replied / contacted) * 100) : 0}%</div><div className="hint">{replied} of {contacted} contacted</div></Link>
-        <Link className="stat" href="/call-sheets"><div className="label">Shoots in 30 days</div><div className="value">{data!.sheets.length}</div><div className="hint">with call sheets</div></Link>
+        <div className="stat"><div className="label">Waiting for you</div><div className="value">{data.pending.length}</div></div>
+        <div className="stat"><div className="label">Queued to send</div><div className="value">{data.queued.length}</div></div>
+        <div className="stat"><div className="label">Sent today</div><div className="value">{data.sentToday}<span className="small"> / 7</span></div></div>
+        <div className="stat"><div className="label">Replies this week</div><div className="value">{data.replies}</div></div>
       </div>
-      <div className="two-col">
-        <div>
-          <div className="panel">
-            <h2>Follow up today</h2>
-            {due.length || reminders.length ? [...due, ...reminders].slice(0, 12).map((x) => (
-              <div key={x.id} className="suggestion">
-                <div><strong>{x.name || x.company}</strong>{x.name && x.company ? ` · ${x.company}` : ''}
-                  <div className="small">{x.follow_up_due ? `First emailed ${formatDate(x.first_emailed_on)}` : `Reminder set for ${formatDate(x.remind_on)}`}</div></div>
-                {x.follow_up_due && x.email ? <a className="btn" href={(() => { const e = followUpEmail(x); return gmailComposeUrl(x.email, e.subject, e.body); })()} target="_blank" rel="noopener">Write follow-up</a>
-                  : <Link className="btn" href="/outreach">Open</Link>}
-              </div>
-            )) : <p className="small">Nothing due. <Link href="/outreach">Add new contacts</Link> to keep the pipeline moving.</p>}
-          </div>
-          <div className="panel">
-            <h2>Coming up</h2>
-            {data!.sheets.length ? data!.sheets.map((s) => (
-              <div key={s.id} className="suggestion">
-                <div><strong>{s.title || 'Shoot'}</strong>{s.client_name ? ` · ${s.client_name}` : ''}<div className="small">{formatLongDate(s.shoot_date)}{s.call_time ? `, call ${s.call_time.slice(0, 5)}` : ''}</div></div>
-                <span className="inline-actions">{s.shared_at ? <span className="status ok">Shared</span> : <span className="status warn">Not shared</span>}<Link className="btn" href={`/call-sheets/${s.id}`}>Open</Link></span>
-              </div>
-            )) : <p className="small">No shoots in the next 30 days.</p>}
-          </div>
-        </div>
-        <div>
-          <div className="panel">
-            <h2>Briefs waiting for sign-off</h2>
-            {data!.briefs.length ? data!.briefs.map((b) => <p key={b.id} className="small"><Link href={`/briefs/${b.id}`}>{b.title || 'Brief'}</Link>{b.client_name ? ` · ${b.client_name}` : ''}</p>)
-              : <p className="small">None waiting.</p>}
-          </div>
-          <div className="panel">
-            <h2>New client comments</h2>
-            {data!.comments.length ? <ul className="br-comments">{data!.comments.map((m) => (
-              <li key={m.id} className="client"><div className="small">{m.author_name} on <Link href={`/briefs/${m.brief_id}`}>{m.studio_briefs?.title || 'a brief'}</Link></div><p>{m.body}</p></li>
-            ))}</ul> : <p className="small">No comments in the last two weeks.</p>}
-          </div>
-        </div>
-      </div>
+
+      <section className="panel">
+        <div className="section-head"><h2>Waiting for approval</h2><span className="small">{s.mode === 'auto' ? 'Automatic mode: new emails skip this step.' : 'Nothing sends until you approve it.'}</span></div>
+        {data.pending.length ? data.pending.map((e) => card(e, 'pending')) : <div className="empty">Nothing waiting. New emails appear here after the morning run.</div>}
+      </section>
+
+      {data.queued.length ? (
+        <section className="panel">
+          <div className="section-head"><h2>Queued to send</h2><span className="small">Sent on weekdays, at most 7 a day. You can still change these.</span></div>
+          {data.queued.map((e) => card(e, 'approved'))}
+        </section>
+      ) : null}
+
+      <section className="panel">
+        <div className="section-head"><h2>Activity</h2>{s.last_run_at ? <span className="small">Last run {when(s.last_run_at)}</span> : null}</div>
+        {data.activity.length ? (
+          <ul className="timeline">
+            {data.activity.map((a) => <li key={a.id}><span aria-hidden>{ICON[a.kind] || '·'}</span> {a.message}<div className="when">{when(a.created_at)}</div></li>)}
+          </ul>
+        ) : <div className="empty">No activity yet.</div>}
+      </section>
     </>
   );
 }

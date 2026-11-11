@@ -1,15 +1,14 @@
 {
-  "name": "rawfiile-studio",
+  "name": "outreacher",
   "version": "1.0.0",
   "private": true,
-  "description": "RAWFIILE Studio: outreach tracker, call sheets, creative briefs and moodboards (Michael Clavier).",
+  "description": "OUTREACHER by RAWFIILE: finds clients, emails them from Gmail and follows up once (Michael Clavier).",
   "scripts": {
     "dev": "next dev --port 3001",
     "build": "next build",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test": "vitest run",
-    "test:db": "vitest run --config vitest.db.config.mts"
+    "test": "vitest run"
   },
   "engines": { "node": ">=20.9" },
   "dependencies": {
@@ -25,10 +24,8 @@
   },
   "devDependencies": {
     "@types/node": "^26.6.5",
-    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "pg": "^8.23.1",
     "typescript": "^5.9.3",
     "vitest": "^5.0.3"
   }

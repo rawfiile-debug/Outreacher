@@ -5,11 +5,9 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/browser';
 import { ToastProvider } from './Toast';
 
 const NAV = [
-  { href: '/', label: 'Overview', ico: '▦' },
-  { href: '/autopilot', label: 'Autopilot', ico: '◉' },
-  { href: '/outreach', label: 'Outreach', ico: '✉' },
-  { href: '/call-sheets', label: 'Call sheets', short: 'Call sheets', ico: '☰' },
-  { href: '/briefs', label: 'Briefs & moodboards', short: 'Briefs', ico: '◧' },
+  { href: '/', label: 'Today', ico: '◉' },
+  { href: '/contacts', label: 'Contacts', ico: '✉' },
+  { href: '/settings', label: 'Settings', ico: '⚙' },
 ];
 const isActive = (path: string, href: string) => (href === '/' ? path === '/' : path === href || path.startsWith(href + '/'));
 
@@ -40,7 +38,7 @@ export function AppShell({ email, children }: { email: string; children: React.R
       </div>
       <nav className="mobile-nav" aria-label="Main">
         {NAV.map((n) => (
-          <Link key={n.href} href={n.href} className={isActive(path, n.href) ? 'active' : ''}><span aria-hidden>{n.ico}</span>{n.short ?? n.label}</Link>
+          <Link key={n.href} href={n.href} className={isActive(path, n.href) ? 'active' : ''}><span aria-hidden>{n.ico}</span>{n.label}</Link>
         ))}
       </nav>
     </ToastProvider>

@@ -1,6 +1,5 @@
 import 'server-only';
 import { createServerClient } from '@supabase/ssr';
-import { createClient as createPlainClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { env } from '@/lib/env';
 
@@ -24,24 +23,4 @@ export async function createSupabaseServerClient() {
       },
     },
   });
-}
-
-/**
- * Service-role client. Bypasses RLS, so it is used only for things a signed-in user must never touch directly:
- * encrypted OAuth tokens and verified Stripe webhooks. Never import this into client code.
- */
-export function createSupabaseAdminClient() {
-  if (!env.supabaseUrl || !env.supabaseSecretKey) {
-    throw new Error('SUPABASE_SECRET_KEY is not set.');
-  }
-  return createPlainClient(env.supabaseUrl, env.supabaseSecretKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-/** Signed-out client (publishable key, no cookies). Used only for the public quote link, which goes through two
- *  narrowly scoped database functions that find a quote by the hash of its secret token. */
-export function createSupabaseAnonClient() {
-  if (!env.supabaseUrl || !env.supabasePublishableKey) throw new Error('Supabase is not configured.');
-  return createPlainClient(env.supabaseUrl, env.supabasePublishableKey, { auth: { persistSession: false, autoRefreshToken: false } });
 }

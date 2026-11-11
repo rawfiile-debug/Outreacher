@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 // Runs before every page: refreshes the Supabase session cookie and sends signed-out visitors to /login.
-// Shared call sheets (/s/...) and briefs (/b/...) are public: their secret link is the only key.
-const PUBLIC_PATHS = ['/login', '/auth/callback', '/s', '/b', '/api/public'];
+const PUBLIC_PATHS = ['/login', '/auth/callback'];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

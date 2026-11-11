@@ -29,9 +29,6 @@ export function must<T>(res: { data: T | null; error: { message: string; code?: 
 export function friendlyDbError(e: { message: string; code?: string }): string {
   if (e.code === '23505') return /email/.test(e.message) ? 'That email is already in your tracker.' : 'That already exists.';
   if (e.code === '23514') {
-    if (/has_name/.test(e.message)) return 'Add at least a name, company or email.';
-    if (/map_url/.test(e.message) || /url_check/.test(e.message)) return 'Links must start with https://';
-    if (/palette/.test(e.message)) return 'Colours must be hex codes like #18263D.';
     return 'Some values are too long or not valid. Please check the form.';
   }
   if (e.code === 'PGRST301' || /JWT/.test(e.message)) return 'Please sign in again.';
