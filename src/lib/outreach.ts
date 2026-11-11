@@ -169,3 +169,33 @@ export type Gig = {
   work_type: string; pay: string; needed: string; how_to_apply: string; fit_score: number | null; fit_reason: string;
   reply: string; status: string; created_at: string;
 };
+
+/**
+ * Builds a profile summary straight away in the browser, from what Michael typed. No AI and no rewriting: it only
+ * arranges his own words under the same headings the hourly run uses, so it is ready the moment he presses the button.
+ */
+export function instantSummary(p: Pick<Profile, 'website' | 'bio' | 'clients' | 'projects' | 'awards' | 'equipment' | 'extra' | 'apply_as' | 'cv_text' | 'instagram_text'>): string {
+  const list = (s: string) => s.split('\n').map((l) => l.trim().replace(/^[-•*]\s*/, '')).filter(Boolean).map((l) => `- ${l}`).join('\n');
+  const as = p.apply_as.map((v) => APPLY_AS.find((a) => a.value === v)?.label).filter(Boolean).map((l) => `- ${l}`).join('\n');
+  const sections: [string, string][] = [
+    ['WHO I AM', p.bio.trim()],
+    ['SELECTED WORK', list(p.projects)],
+    ['CLIENTS AND COLLABORATORS', list(p.clients)],
+    ['RECOGNITION', list(p.awards) || 'None listed yet'],
+    ['EQUIPMENT', list(p.equipment)],
+    ['ALSO', p.extra.trim()],
+    ['HOW I CAN APPLY', as],
+    ['LINKS', [p.website.trim() && `- Website: ${p.website.trim()}`, '- Instagram: RAWFIILE'].filter(Boolean).join('\n')],
+  ];
+  const missing: string[] = [];
+  if (!p.bio.trim()) missing.push('a short bio');
+  if (!p.projects.trim()) missing.push('projects');
+  if (!p.clients.trim()) missing.push('clients');
+  if (!p.equipment.trim()) missing.push('equipment');
+  const notes: string[] = [];
+  if (missing.length) notes.push(`- Add ${missing.join(', ')} in the boxes below`);
+  if (p.cv_text && !p.bio.trim()) notes.push('- Your CV is uploaded but its details are not copied here; press "Polish with Claude" to pull them in');
+  if (p.instagram_text) notes.push('- Instagram screenshot text is only used by "Polish with Claude"');
+  sections.push(['TO CHECK', notes.join('\n') || 'Nothing to check']);
+  return sections.filter(([, body]) => body).map(([h, body]) => `${h}\n${body}`).join('\n\n').slice(0, 8000);
+}

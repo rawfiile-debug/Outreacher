@@ -75,3 +75,20 @@ describe('toBlocks', () => {
     expect(b[0].text).toBe('Q1: Tell us about your project');
   });
 });
+
+import { instantSummary } from '../src/lib/outreach';
+describe('instantSummary', () => {
+  const base = { website: 'https://www.rawfiile.co.uk', bio: "I'm Michael.", clients: 'Viberoom\n- YCUK', projects: 'From the Concrete: lookbook', awards: '', equipment: 'Mamiya RB67', extra: '', apply_as: ['individual', 'ycuk'], cv_text: '', instagram_text: '' };
+  it('arranges his own words under headings', () => {
+    const s = instantSummary(base);
+    expect(s).toContain("WHO I AM\nI'm Michael.");
+    expect(s).toContain('CLIENTS AND COLLABORATORS\n- Viberoom\n- YCUK');
+    expect(s).toContain('RECOGNITION\nNone listed yet');
+    expect(s).toContain('- Through YCUK (organisation)');
+    expect(s).toContain('TO CHECK\nNothing to check');
+    expect(s).not.toContain('ALSO');
+  });
+  it('lists what is missing', () => {
+    expect(instantSummary({ ...base, bio: '', clients: '' })).toContain('Add a short bio, clients');
+  });
+});
