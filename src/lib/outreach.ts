@@ -136,3 +136,36 @@ export function deadlineLabel(g: Pick<Grant, 'deadline' | 'deadline_note'>, now 
 
 /** File name for a downloaded draft, e.g. "Developing Your Creative Practice - Michael Clavier". */
 export const draftFileName = (title: string) => `${title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Application'} - Michael Clavier`;
+
+// Gigs --------------------------------------------------------------------------------------------------------------
+export const GIG_WORK_TYPES: Option[] = [
+  { value: 'fashion', label: 'Fashion and editorial' }, { value: 'events', label: 'Events and nightlife' },
+  { value: 'portraits', label: 'Portraits and headshots' }, { value: 'product', label: 'Product and still life' },
+  { value: 'music', label: 'Music and artists' }, { value: 'content', label: 'Social and creator content' },
+  { value: 'video', label: 'Video and interviews' }, { value: 'brand', label: 'Brand campaigns' },
+  { value: 'weddings', label: 'Weddings and private events' },
+];
+export const GIG_PAY: Option[] = [
+  { value: 'paid', label: 'Paid work' }, { value: 'collab', label: 'Collaborations (TFP)' }, { value: 'expenses', label: 'Expenses only' },
+];
+export const GIG_LOCATIONS: Option[] = [
+  { value: 'london', label: 'London' }, { value: 'south_east', label: 'South East' }, { value: 'uk', label: 'Anywhere in the UK' },
+  { value: 'remote', label: 'Remote (editing, content)' }, { value: 'international', label: 'Abroad (travel paid)' },
+];
+export const GIG_SOURCES: Option[] = [
+  { value: 'job_boards', label: 'Job boards (Mandy, The Dots, Indeed and more)' }, { value: 'linkedin', label: 'LinkedIn (public posts)' },
+  { value: 'reddit', label: 'Reddit' }, { value: 'x', label: 'X (Twitter)' },
+  { value: 'facebook', label: 'Facebook (public posts and groups)' }, { value: 'instagram', label: 'Instagram (public posts)' },
+];
+export const GIG_MIN_BUDGETS: Option[] = [
+  { value: '0', label: 'Any budget' }, { value: '100', label: '£100 or more' }, { value: '250', label: '£250 or more' },
+  { value: '500', label: '£500 or more' }, { value: '1000', label: '£1,000 or more' },
+];
+export const GIG_STATUSES: Option[] = [
+  { value: 'new', label: 'New' }, { value: 'replied', label: 'Replied' }, { value: 'booked', label: 'Booked' }, { value: 'dismissed', label: 'Not for me' },
+];
+export type Gig = {
+  id: string; title: string; source: string; url: string; poster: string; posted_at: string | null; location: string;
+  work_type: string; pay: string; needed: string; how_to_apply: string; fit_score: number | null; fit_reason: string;
+  reply: string; status: string; created_at: string;
+};
