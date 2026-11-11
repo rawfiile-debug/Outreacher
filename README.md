@@ -2,10 +2,9 @@
 
 One job: find businesses that could hire Michael Clavier (RAWFIILE) for photo and video work, email them from rawfiile@gmail.com, follow up once, and stop the moment anyone replies.
 
-Six pages:
+Five pages:
 
 - **Today**: emails waiting for approval (read, edit, approve or skip), emails queued to send, and what happened (found, sent, replied, opted out, bounced).
-- **Contacts**: everyone found or added, and their stage (To contact, Emailed, Followed up, Replied, Meeting, Won, Not now). Add someone by hand and Autopilot writes their first email on its next morning run.
 - **Gigs**: dropdowns for the work you want, then posts from job boards and public social posts where someone is looking for a photographer or videographer, each with a ready-to-copy reply. Checked hourly, 8am to 8pm, with push notifications for strong matches.
 - **Grants**: dropdowns for the kind of grant you want, then a list of grants found for you, each with what it funds, who can apply and whether you are eligible (searched daily until at least 5 open eligible grants are listed, then weekly). Upload a grant's application form, press Draft now, and download the drafted answers as PDF, Word or text, or copy them.
 - **Profile**: your CV, Instagram screenshots, website and details, and the summary built from them that grant answers and gig replies are written from. The text of uploads is read in your browser, because Claude's scheduled runs cannot download files.
