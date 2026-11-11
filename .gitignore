@@ -12,3 +12,4 @@ AGENTS.md
 coverage/
 backups/
 /public/ocr/
+public/vendor/

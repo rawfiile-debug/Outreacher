@@ -41,3 +41,12 @@ describe('domainOf and stageTone', () => {
     expect(stageTone('Not now')).toBe('bad');
   });
 });
+
+import { safeFileName } from '../src/lib/outreach';
+describe('safeFileName', () => {
+  it('cleans names', () => {
+    expect(safeFileName('My CV (2026) final.PDF')).toBe('My-CV-2026-final.pdf');
+    expect(safeFileName('../../etc/passwd')).toBe('passwd');
+    expect(safeFileName('é.png')).toBe('e.png');
+  });
+});

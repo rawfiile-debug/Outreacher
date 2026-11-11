@@ -53,3 +53,25 @@ export function stageTone(stage: string): string {
   if (stage === 'Not now') return 'bad';
   return '';
 }
+
+export const APPLY_AS = [
+  { value: 'individual', label: 'An individual artist' },
+  { value: 'sole_trader', label: 'A sole trader (RAWFIILE)' },
+  { value: 'ycuk', label: 'Through YCUK (organisation)' },
+] as const;
+
+export type Profile = {
+  owner_id: string; website: string; cv_path: string | null; cv_name: string; cv_text: string; instagram_paths: string[]; instagram_text: string;
+  bio: string; clients: string; projects: string; awards: string; equipment: string; apply_as: string[]; extra: string;
+  summary: string; summary_built_at: string | null; summary_confirmed: boolean;
+};
+export type Job = { id: string; kind: string; ref_id: string | null; status: 'queued' | 'running' | 'done' | 'failed'; error: string; created_at: string; finished_at: string | null };
+
+/** A file name that is safe as a storage path: letters, numbers, dots, dashes and underscores only. */
+export function safeFileName(full: string): string {
+  const name = full.split(/[\\/]/).pop() || '';
+  const dot = name.lastIndexOf('.');
+  const base = (dot > 0 ? name.slice(0, dot) : name).normalize('NFKD').replace(/[^A-Za-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'file';
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) : '';
+  return ext ? `${base}.${ext}` : base;
+}

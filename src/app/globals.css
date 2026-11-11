@@ -109,3 +109,7 @@ tr:last-child td{border-bottom:0}
   .mobile-nav span{font-size:18px}
   .field input,.field select,.field textarea,input.filter,select.filter{font-size:16px}
 }
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.shots figure{margin:0;display:grid;gap:6px}
+.shots img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:10px;border:1px solid var(--line-soft)}
+.btn input[hidden]{display:none}
