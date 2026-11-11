@@ -75,3 +75,64 @@ export function safeFileName(full: string): string {
   const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 5) : '';
   return ext ? `${base}.${ext}` : base;
 }
+
+// Grants ------------------------------------------------------------------------------------------------------------
+export type Option = { value: string; label: string };
+export const GRANT_TYPES: Option[] = [
+  { value: 'project', label: 'Project funding' }, { value: 'commission', label: 'Commissions and open calls' },
+  { value: 'residency', label: 'Residencies' }, { value: 'equipment', label: 'Equipment' },
+  { value: 'business', label: 'Business support' }, { value: 'training', label: 'Training and mentoring' },
+  { value: 'travel', label: 'Travel and research' }, { value: 'prize', label: 'Prizes and awards' },
+  { value: 'exhibition', label: 'Exhibitions and publishing' },
+];
+export const GRANT_FOCUS: Option[] = [
+  { value: 'photography', label: 'Photography' }, { value: 'film', label: 'Film and video' },
+  { value: 'cross_arts', label: 'Cross-arts' }, { value: 'community', label: 'Community and youth' },
+  { value: 'fashion', label: 'Fashion' }, { value: 'music', label: 'Music' },
+  { value: 'heritage', label: 'Heritage and archives' }, { value: 'diversity', label: 'Under-represented artists' },
+];
+export const GRANT_LOCATIONS: Option[] = [
+  { value: 'london', label: 'London' }, { value: 'uk', label: 'UK-wide' }, { value: 'england', label: 'England' },
+  { value: 'international', label: 'International (open to UK)' },
+];
+export const GRANT_STAGES: Option[] = [
+  { value: 'emerging', label: 'Emerging' }, { value: 'mid', label: 'Mid-career' }, { value: 'any', label: 'Any stage' },
+];
+export const GRANT_MIN_AMOUNTS: Option[] = [
+  { value: '0', label: 'Any amount' }, { value: '500', label: '£500 or more' }, { value: '1000', label: '£1,000 or more' },
+  { value: '2500', label: '£2,500 or more' }, { value: '5000', label: '£5,000 or more' }, { value: '10000', label: '£10,000 or more' },
+];
+export const GRANT_STATUSES: Option[] = [
+  { value: 'new', label: 'New' }, { value: 'applying', label: 'Applying' }, { value: 'submitted', label: 'Submitted' },
+  { value: 'won', label: 'Won' }, { value: 'rejected', label: 'Rejected' }, { value: 'dismissed', label: 'Not for me' },
+];
+export const ELIGIBILITY: Record<string, { label: string; tone: string }> = {
+  eligible: { label: 'Eligible', tone: 'ok' }, check: { label: 'Check', tone: 'warn' }, not_eligible: { label: 'Not eligible', tone: 'bad' },
+};
+export const labelOf = (opts: Option[], v: string) => opts.find((o) => o.value === v)?.label ?? v;
+
+export type Grant = {
+  id: string; title: string; funder: string; url: string; grant_type: string; amount: string; amount_max: number | null;
+  deadline: string | null; deadline_note: string; location: string; what_it_funds: string; who_can_apply: string;
+  eligibility: 'eligible' | 'check' | 'not_eligible'; eligibility_reason: string; fit_score: number | null;
+  status: string; notes: string; form_name: string; form_text: string; extra_info: string; draft: string; drafted_at: string | null;
+  created_at: string;
+};
+
+/** Whole days from today (London) until a yyyy-mm-dd deadline; negative once it has passed. */
+export function daysUntil(deadline: string, now = new Date()): number {
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(now);
+  return Math.round((Date.parse(deadline) - Date.parse(today)) / 86_400_000);
+}
+
+export function deadlineLabel(g: Pick<Grant, 'deadline' | 'deadline_note'>, now = new Date()): string {
+  if (!g.deadline) return g.deadline_note || 'Rolling or not stated';
+  const d = daysUntil(g.deadline, now);
+  const date = new Date(g.deadline + 'T12:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  if (d < 0) return `Closed ${date}`;
+  if (d === 0) return `Closes today`;
+  return `${date} (${d} day${d === 1 ? '' : 's'})`;
+}
+
+/** File name for a downloaded draft, e.g. "Developing Your Creative Practice - Michael Clavier". */
+export const draftFileName = (title: string) => `${title.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) || 'Application'} - Michael Clavier`;

@@ -7,6 +7,7 @@ import { ToastProvider } from './Toast';
 const NAV = [
   { href: '/', label: 'Today', ico: '◉' },
   { href: '/contacts', label: 'Contacts', ico: '✉' },
+  { href: '/grants', label: 'Grants', ico: '£' },
   { href: '/profile', label: 'Profile', ico: '☺' },
   { href: '/settings', label: 'Settings', ico: '⚙' },
 ];

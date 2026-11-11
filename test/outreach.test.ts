@@ -50,3 +50,28 @@ describe('safeFileName', () => {
     expect(safeFileName('é.png')).toBe('e.png');
   });
 });
+
+import { daysUntil, deadlineLabel, draftFileName } from '../src/lib/outreach';
+describe('deadlines', () => {
+  const now = new Date('2026-11-11T10:00:00Z');
+  it('counts days in London', () => {
+    expect(daysUntil('2026-11-20', now)).toBe(9);
+    expect(daysUntil('2026-11-10', now)).toBe(-1);
+  });
+  it('labels them', () => {
+    expect(deadlineLabel({ deadline: '2026-11-12', deadline_note: '' }, now)).toBe('12 Nov 2026 (1 day)');
+    expect(deadlineLabel({ deadline: '2026-11-11', deadline_note: '' }, now)).toBe('Closes today');
+    expect(deadlineLabel({ deadline: null, deadline_note: '' }, now)).toBe('Rolling or not stated');
+    expect(deadlineLabel({ deadline: '2026-11-01', deadline_note: '' }, now)).toMatch(/^Closed/);
+  });
+  it('makes safe file names', () => expect(draftFileName('DYCP: Round 3/4')).toBe('DYCP Round 3 4 - Michael Clavier'));
+});
+
+import { toBlocks } from '../src/lib/download';
+describe('toBlocks', () => {
+  it('finds headings and paragraphs', () => {
+    const b = toBlocks('Q1: Tell us about your project\nI want to photograph...\n\nSecond para here.\n\nBUDGET\n£2,000 on film');
+    expect(b.map((x) => x.kind)).toEqual(['heading', 'para', 'para', 'heading', 'para']);
+    expect(b[0].text).toBe('Q1: Tell us about your project');
+  });
+});

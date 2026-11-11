@@ -2,16 +2,17 @@
 
 One job: find businesses that could hire Michael Clavier (RAWFIILE) for photo and video work, email them from rawfiile@gmail.com, follow up once, and stop the moment anyone replies.
 
-Four pages:
+Five pages:
 
 - **Today**: emails waiting for approval (read, edit, approve or skip), emails queued to send, and what happened (found, sent, replied, opted out, bounced).
 - **Contacts**: everyone found or added, and their stage (To contact, Emailed, Followed up, Replied, Meeting, Won, Not now). Add someone by hand and Autopilot writes their first email on its next morning run.
+- **Grants**: dropdowns for the kind of grant you want, then a list of grants found for you, each with what it funds, who can apply and whether you are eligible (searched daily until at least 5 open eligible grants are listed, then weekly). Upload a grant's application form, press Draft now, and download the drafted answers as PDF, Word or text, or copy them.
 - **Profile**: your CV, Instagram screenshots, website and details, and the summary built from them that grant answers and gig replies are written from. The text of uploads is read in your browser, because Claude's scheduled runs cannot download files.
 - **Settings**: Autopilot on or off, Approve each email or Automatic, how many new businesses a day, when to follow up, search targets, the work emails may mention, and the do-not-contact list.
 
 ## How it works
 
-The work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 06:40 and 13:40 London time, using Michael's Gmail, Google Drive and Supabase connections and Claude's own web search. No API keys and nothing that costs money. A second task ("Outreacher hourly", 8am to 8pm every day) handles jobs queued from the app, such as building the profile summary. This site only holds the settings, the approval queue and the history.
+The work is done by a **Claude scheduled task** ("Outreacher autopilot") on weekdays at about 06:40 and 13:40 London time, using Michael's Gmail, Google Drive and Supabase connections and Claude's own web search. No API keys and nothing that costs money. A second task ("Outreacher hourly", 8am to 8pm every day) handles jobs queued from the app, such as building the profile summary, searching for grants and drafting grant answers. This site only holds the settings, the approval queue and the history.
 
 - **Finding**: searches the targets in Settings, reads each business's own site for an address on its own domain, and judges fit 0 to 10. Webmail, privacy, jobs, accounts and customer-service inboxes are never used.
 - **Writing**: the five line cold email method, in Michael's wording rules. No price, no attachments in the first email, website and IG lines, signed Michael Clavier, with an opt-out line.
